@@ -1,4 +1,5 @@
 import Image from 'next/image';
+import Link from 'next/link';
 
 export default function LeadStory() {
     return (
@@ -9,9 +10,11 @@ export default function LeadStory() {
                 <div className="flex flex-col-reverse md:flex-row gap-6">
                     {/* Headline & Text */}
                     <div className="flex-1">
-                        <h2 className="text-4xl md:text-5xl font-serif font-black leading-tight mb-4 hover:text-gray-700 cursor-pointer">
-                            Global Markets Rally as Tech Giants Announce Major Breakthroughs
-                        </h2>
+                        <Link href="/articles/global-markets-rally" className="group">
+                            <h2 className="text-4xl md:text-5xl font-serif font-black leading-tight mb-4 group-hover:text-gray-700 cursor-pointer">
+                                Global Markets Rally as Tech Giants Announce Major Breakthroughs
+                            </h2>
+                        </Link>
                         <p className="text-lg text-gray-700 font-serif leading-relaxed mb-4">
                             Investors are celebrating a wave of innovation that promises to reshape industries. Analysts predict a sustained period of growth as new technologies enter the mainstream market.
                         </p>
@@ -21,12 +24,12 @@ export default function LeadStory() {
                     </div>
 
                     {/* Hero Image */}
-                    <div className="md:w-2/3 relative aspect-video md:aspect-[4/3]">
+                    <Link href="/articles/global-markets-rally" className="md:w-2/3 relative aspect-video md:aspect-[4/3] cursor-pointer">
                         {/* Placeholder for now */}
-                        <div className="absolute inset-0 bg-gray-200 flex items-center justify-center text-gray-400 font-sans text-sm">
+                        <div className="absolute inset-0 bg-gray-200 flex items-center justify-center text-gray-400 font-sans text-sm hover:opacity-90 transition-opacity">
                             [Featured Image Placeholder]
                         </div>
-                    </div>
+                    </Link>
                 </div>
             </div>
 
@@ -35,9 +38,11 @@ export default function LeadStory() {
 
                 {/* Story 2 */}
                 <article className="group cursor-pointer">
-                    <h3 className="text-xl font-serif font-bold mb-2 group-hover:underline">
-                        Senate passes new climate legislation in historic vote
-                    </h3>
+                    <Link href="/articles/senate-passes-climate-bill">
+                        <h3 className="text-xl font-serif font-bold mb-2 group-hover:underline">
+                            Senate passes new climate legislation in historic vote
+                        </h3>
+                    </Link>
                     <p className="text-sm text-gray-600 font-serif leading-snug">
                         The bill aims to reduce carbon emissions by 40% over the next decade, marking a significant shift in energy policy.
                     </p>
@@ -47,14 +52,14 @@ export default function LeadStory() {
 
                 {/* Story 3 */}
                 <article className="group cursor-pointer">
-                    <div className="flex gap-4">
+                    <Link href="/articles/local-art-festival" className="flex gap-4">
                         <div className="flex-1">
                             <h3 className="text-lg font-serif font-bold mb-2 group-hover:underline">
                                 Local Art Festival Draws Record Crowds
                             </h3>
                         </div>
                         <div className="w-16 h-16 bg-gray-200 shrink-0"></div>
-                    </div>
+                    </Link>
                 </article>
 
                 <hr className="border-gray-200" />

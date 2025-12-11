@@ -1,6 +1,7 @@
 import Header from "../components/Header";
 import LeadStory from "../components/LeadStory";
 import DailyBriefing from "../components/DailyBriefing";
+import Link from 'next/link';
 
 export default function Home() {
   return (
@@ -20,9 +21,9 @@ export default function Home() {
               {[1, 2, 3].map((i) => (
                 <article key={i} className="flex flex-col md:flex-row gap-4 border-b border-gray-200 pb-6">
                   <div className="flex-1">
-                    <h3 className="font-serif text-xl font-bold mb-2 hover:underline cursor-pointer">
+                    <Link href={`/articles/global-markets-rally`} className="font-serif text-xl font-bold mb-2 hover:underline cursor-pointer block">
                       Technology sector sees unprecedented growth in Q4
-                    </h3>
+                    </Link>
                     <p className="text-gray-600 font-serif text-sm leading-relaxed mb-2">
                       Experts attribute the surge to rapid adoption of AI tools across enterprise workflows...
                     </p>

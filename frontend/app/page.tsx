@@ -1,65 +1,75 @@
-import Image from "next/image";
+import Header from "../components/Header";
+import LeadStory from "../components/LeadStory";
+import DailyBriefing from "../components/DailyBriefing";
 
 export default function Home() {
   return (
-    <div className="flex min-h-screen items-center justify-center bg-zinc-50 font-sans dark:bg-black">
-      <main className="flex min-h-screen w-full max-w-3xl flex-col items-center justify-between py-32 px-16 bg-white dark:bg-black sm:items-start">
-        <Image
-          className="dark:invert"
-          src="/next.svg"
-          alt="Next.js logo"
-          width={100}
-          height={20}
-          priority
-        />
-        <div className="flex flex-col items-center gap-6 text-center sm:items-start sm:text-left">
-          <h1 className="max-w-xs text-3xl font-semibold leading-10 tracking-tight text-black dark:text-zinc-50">
-            To get started, edit the page.tsx file.
-          </h1>
-          <p className="max-w-md text-lg leading-8 text-zinc-600 dark:text-zinc-400">
-            Looking for a starting point or more instructions? Head over to{" "}
-            <a
-              href="https://vercel.com/templates?framework=next.js&utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-              className="font-medium text-zinc-950 dark:text-zinc-50"
-            >
-              Templates
-            </a>{" "}
-            or the{" "}
-            <a
-              href="https://nextjs.org/learn?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-              className="font-medium text-zinc-950 dark:text-zinc-50"
-            >
-              Learning
-            </a>{" "}
-            center.
-          </p>
+    <div className="min-h-screen bg-[var(--background)] flex flex-col">
+      <Header />
+
+      <main className="container mx-auto px-4 flex-grow">
+        <LeadStory />
+
+        <div className="grid grid-cols-1 md:grid-cols-12 gap-6 pb-12">
+          {/* Main Feed - 8 Cols */}
+          <div className="md:col-span-8">
+            <h4 className="font-sans font-bold text-xs uppercase border-t border-black pt-1 mt-6 mb-4">Latest News</h4>
+
+            {/* Fake Article List */}
+            <div className="space-y-6">
+              {[1, 2, 3].map((i) => (
+                <article key={i} className="flex flex-col md:flex-row gap-4 border-b border-gray-200 pb-6">
+                  <div className="flex-1">
+                    <h3 className="font-serif text-xl font-bold mb-2 hover:underline cursor-pointer">
+                      Technology sector sees unprecedented growth in Q4
+                    </h3>
+                    <p className="text-gray-600 font-serif text-sm leading-relaxed mb-2">
+                      Experts attribute the surge to rapid adoption of AI tools across enterprise workflows...
+                    </p>
+                    <span className="text-xs text-gray-400 font-sans uppercase">2h ago</span>
+                  </div>
+                  <div className="w-full md:w-48 h-32 bg-gray-200 shrink-0"></div>
+                </article>
+              ))}
+            </div>
+          </div>
+
+          {/* Right Rail - 4 Cols */}
+          <div className="md:col-span-4">
+            <DailyBriefing />
+
+            <div className="border-t border-black pt-1 mt-8">
+              <h4 className="font-sans font-bold text-xs uppercase mb-3">Editors' Picks</h4>
+              <ul className="space-y-4">
+                {[1, 2, 3].map((i) => (
+                  <li key={i} className="flex gap-3 group cursor-pointer">
+                    <span className="text-2xl font-serif text-gray-300 font-bold">{i}</span>
+                    <div>
+                      <h4 className="font-serif font-bold group-hover:underline">The 100 Best Books of the 21st Century</h4>
+                      <span className="text-xs text-gray-500 font-sans">Books</span>
+                    </div>
+                  </li>
+                ))}
+              </ul>
+            </div>
+          </div>
         </div>
-        <div className="flex flex-col gap-4 text-base font-medium sm:flex-row">
-          <a
-            className="flex h-12 w-full items-center justify-center gap-2 rounded-full bg-foreground px-5 text-background transition-colors hover:bg-[#383838] dark:hover:bg-[#ccc] md:w-[158px]"
-            href="https://vercel.com/new?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            <Image
-              className="dark:invert"
-              src="/vercel.svg"
-              alt="Vercel logomark"
-              width={16}
-              height={16}
-            />
-            Deploy Now
-          </a>
-          <a
-            className="flex h-12 w-full items-center justify-center rounded-full border border-solid border-black/[.08] px-5 transition-colors hover:border-transparent hover:bg-black/[.04] dark:border-white/[.145] dark:hover:bg-[#1a1a1a] md:w-[158px]"
-            href="https://nextjs.org/docs?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            Documentation
-          </a>
-        </div>
+
       </main>
+
+      <footer className="bg-gray-100 border-t border-gray-300 py-8 mt-auto">
+        <div className="container mx-auto px-4 text-center">
+          <h2 className="font-blackletter text-3xl mb-4">The News Portal</h2>
+          <div className="text-xs text-gray-500 font-sans">
+            &copy; {new Date().getFullYear()} The News Portal. All rights reserved.
+          </div>
+          <div className="flex justify-center gap-4 mt-4 text-xs font-bold text-gray-600 uppercase">
+            <span>Privacy Policy</span>
+            <span>Terms of Service</span>
+            <span>Contact Us</span>
+          </div>
+        </div>
+      </footer>
     </div>
   );
 }

@@ -15,12 +15,12 @@ function HomePage() {
     const featuredArticles = getFeaturedArticles();
     const mainCategories = getMainCategories();
 
-    // Auto-slide for featured slider
+    // Auto-slide for featured slider (2 seconds)
     useEffect(() => {
         if (featuredArticles.length > 1) {
             const interval = setInterval(() => {
                 setCurrentSlide(prev => (prev + 1) % featuredArticles.length);
-            }, 5000);
+            }, 2000);
             return () => clearInterval(interval);
         }
     }, [featuredArticles.length]);

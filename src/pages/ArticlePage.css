@@ -74,7 +74,32 @@
     width: 100%;
     height: auto;
     object-fit: cover;
-    max-height: 500px;
+    max-height: 400px;
+}
+
+/* Tags */
+.article-tags {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: center;
+    gap: var(--space-sm);
+    margin-bottom: var(--space-lg);
+}
+
+.article-tag {
+    padding: var(--space-xs) var(--space-md);
+    background: var(--color-bg-tertiary);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    border-radius: var(--radius-full);
+    font-size: var(--text-xs);
+    color: var(--color-text-secondary);
+    transition: all var(--transition-fast);
+}
+
+.article-tag:hover {
+    background: var(--color-accent-secondary);
+    color: white;
+    border-color: transparent;
 }
 
 .article-content {
@@ -132,13 +157,66 @@
     color: var(--color-text-secondary);
     font-size: var(--text-sm);
     transition: all var(--transition-base);
+    cursor: pointer;
 }
 
 .share-btn:hover {
-    background: var(--color-accent-primary);
-    border-color: var(--color-accent-primary);
-    color: white;
     transform: translateY(-2px);
+}
+
+/* Brand Colors */
+.share-twitter {
+    background: #000000;
+    color: white;
+    border-color: #000000;
+}
+
+.share-twitter:hover {
+    background: #1a1a1a;
+    color: white;
+}
+
+.share-facebook {
+    background: #1877F2;
+    color: white;
+    border-color: #1877F2;
+}
+
+.share-facebook:hover {
+    background: #0d6efd;
+    color: white;
+}
+
+.share-whatsapp {
+    background: #25D366;
+    color: white;
+    border-color: #25D366;
+}
+
+.share-whatsapp:hover {
+    background: #1da851;
+    color: white;
+}
+
+.share-linkedin {
+    background: #0A66C2;
+    color: white;
+    border-color: #0A66C2;
+}
+
+.share-linkedin:hover {
+    background: #004182;
+    color: white;
+}
+
+.share-copy {
+    background: var(--color-bg-tertiary);
+}
+
+.share-copy:hover {
+    background: var(--color-accent-primary);
+    color: white;
+    border-color: var(--color-accent-primary);
 }
 
 /* Author Bio */

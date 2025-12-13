@@ -9,13 +9,15 @@ function HomePage() {
     const [email, setEmail] = useState('');
     const [subscribed, setSubscribed] = useState(false);
 
-    const { articles, categories, getFeaturedArticles, getMainCategories } = useData();
+    const { articles, categories, getHeroArticle, getMainCategories } = useData();
 
-    const featuredArticles = getFeaturedArticles();
-    const mainFeatured = featuredArticles[0] || articles[0];
-    // 4 small posts for sidebar
-    const sidebarArticles = articles.filter(a => !a.featured && a.id !== mainFeatured?.id).slice(0, 4);
+    const heroArticle = getHeroArticle();
     const mainCategories = getMainCategories();
+
+    // 4 small posts for sidebar (excluding hero article)
+    const sidebarArticles = articles
+        .filter(a => a.id !== heroArticle?.id)
+        .slice(0, 4);
 
     const handleSubscribe = (e) => {
         e.preventDefault();
@@ -33,7 +35,7 @@ function HomePage() {
         return articles.filter(a => a.category === categoryId).slice(0, 4);
     };
 
-    if (!mainFeatured) {
+    if (!heroArticle) {
         return (
             <div className="home-page">
                 <div className="container" style={{ padding: '4rem 0', textAlign: 'center' }}>
@@ -52,24 +54,24 @@ function HomePage() {
                 {/* Hero Section - 1 big + 4 small */}
                 <section className="hero-section">
                     <div className="hero-grid">
-                        <Link to={`/article/${mainFeatured.id}`} className="hero-featured">
+                        <Link to={`/article/${heroArticle.id}`} className="hero-featured">
                             <img
-                                src={mainFeatured.image}
-                                alt={mainFeatured.title}
+                                src={heroArticle.image}
+                                alt={heroArticle.title}
                                 className="hero-featured-image"
                             />
                             <div className="hero-featured-overlay">
                                 <span
                                     className="hero-featured-category category-badge"
-                                    style={{ '--category-color': getCategory(mainFeatured.category)?.color }}
+                                    style={{ '--category-color': getCategory(heroArticle.category)?.color }}
                                 >
-                                    {getCategory(mainFeatured.category)?.name}
+                                    {getCategory(heroArticle.category)?.name}
                                 </span>
-                                <h1 className="hero-featured-title">{mainFeatured.title}</h1>
-                                <p className="hero-featured-excerpt">{mainFeatured.excerpt}</p>
+                                <h1 className="hero-featured-title">{heroArticle.title}</h1>
+                                <p className="hero-featured-excerpt">{heroArticle.excerpt}</p>
                                 <div className="hero-featured-meta">
-                                    <span>📅 {mainFeatured.date}</span>
-                                    <span>{mainFeatured.readTime}</span>
+                                    <span>📅 {heroArticle.date}</span>
+                                    <span>{heroArticle.readTime}</span>
                                 </div>
                             </div>
                         </Link>
@@ -82,8 +84,8 @@ function HomePage() {
                     </div>
                 </section>
 
-                {/* Category Sections - 4 articles each */}
-                {mainCategories.slice(0, 4).map((category) => {
+                {/* Category Sections - in ordered sequence, 4 articles each */}
+                {mainCategories.map((category) => {
                     const categoryArticles = getCategoryArticles(category.id);
 
                     if (categoryArticles.length === 0) return null;

@@ -71,6 +71,24 @@ function AdminLayout() {
                                     <span>বিভাগ</span>
                                 </NavLink>
                             </li>
+                            <li>
+                                <NavLink
+                                    to="/admin/media"
+                                    className={({ isActive }) => `admin-nav-link ${isActive ? 'active' : ''}`}
+                                >
+                                    <span>🖼️</span>
+                                    <span>মিডিয়া</span>
+                                </NavLink>
+                            </li>
+                            <li>
+                                <NavLink
+                                    to="/admin/settings"
+                                    className={({ isActive }) => `admin-nav-link ${isActive ? 'active' : ''}`}
+                                >
+                                    <span>⚙️</span>
+                                    <span>সেটিংস</span>
+                                </NavLink>
+                            </li>
                         </ul>
                     </div>
 

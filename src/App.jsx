@@ -16,6 +16,8 @@ import AdminDashboard from './admin/pages/AdminDashboard';
 import ArticleList from './admin/pages/ArticleList';
 import ArticleForm from './admin/pages/ArticleForm';
 import CategoryManager from './admin/pages/CategoryManager';
+import MediaLibrary from './admin/pages/MediaLibrary';
+import AdminSettings from './admin/pages/AdminSettings';
 
 import './index.css';
 
@@ -80,6 +82,8 @@ function App() {
               <Route path="articles/new" element={<ArticleForm />} />
               <Route path="articles/edit/:id" element={<ArticleForm />} />
               <Route path="categories" element={<CategoryManager />} />
+              <Route path="media" element={<MediaLibrary />} />
+              <Route path="settings" element={<AdminSettings />} />
             </Route>
           </Routes>
         </Router>

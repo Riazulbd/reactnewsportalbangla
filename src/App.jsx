@@ -18,6 +18,7 @@ import ArticleForm from './admin/pages/ArticleForm';
 import CategoryManager from './admin/pages/CategoryManager';
 import MediaLibrary from './admin/pages/MediaLibrary';
 import AdminSettings from './admin/pages/AdminSettings';
+import Profile from './admin/pages/Profile';
 
 import './index.css';
 
@@ -84,6 +85,7 @@ function App() {
               <Route path="categories" element={<CategoryManager />} />
               <Route path="media" element={<MediaLibrary />} />
               <Route path="settings" element={<AdminSettings />} />
+              <Route path="profile" element={<Profile />} />
             </Route>
           </Routes>
         </Router>

@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useParams, useNavigate, Link } from 'react-router-dom';
 import { useData } from '../DataContext';
 import '../admin.css';
@@ -6,14 +6,23 @@ import '../admin.css';
 function ArticleForm() {
     const { id } = useParams();
     const navigate = useNavigate();
-    const { articles, categories, mediaLibrary, addArticle, updateArticle, searchMedia } = useData();
+    const fileInputRef = useRef(null);
+    const {
+        articles, categories, mediaLibrary, settings,
+        addArticle, updateArticle, searchMedia, addMedia,
+        generateSlug, generateSEOWithAI
+    } = useData();
     const isEditing = Boolean(id);
     const [showMediaModal, setShowMediaModal] = useState(false);
     const [mediaSearch, setMediaSearch] = useState('');
     const [activeTab, setActiveTab] = useState('content');
+    const [isGeneratingSEO, setIsGeneratingSEO] = useState(false);
+    const [seoError, setSeoError] = useState('');
+    const [uploadingImage, setUploadingImage] = useState(false);
 
     const [formData, setFormData] = useState({
         title: '',
+        slug: '',
         excerpt: '',
         content: '',
         category: '',
@@ -40,6 +49,7 @@ function ArticleForm() {
             if (article) {
                 setFormData({
                     title: article.title,
+                    slug: article.slug || '',
                     excerpt: article.excerpt,
                     content: article.content,
                     category: article.category,
@@ -60,6 +70,16 @@ function ArticleForm() {
             }
         }
     }, [id, isEditing, articles]);
+
+    // Auto-generate slug from title
+    useEffect(() => {
+        if (!isEditing && formData.title && !formData.slug) {
+            setFormData(prev => ({
+                ...prev,
+                slug: generateSlug(formData.title),
+            }));
+        }
+    }, [formData.title, isEditing, generateSlug]);
 
     const handleChange = (e) => {
         const { name, value, type, checked } = e.target;
@@ -98,6 +118,65 @@ function ArticleForm() {
     const handleSelectImage = (imageUrl) => {
         setFormData(prev => ({ ...prev, image: imageUrl }));
         setShowMediaModal(false);
+    };
+
+    // Handle real file upload
+    const handleFileUpload = async (e) => {
+        const file = e.target.files[0];
+        if (!file) return;
+
+        setUploadingImage(true);
+
+        try {
+            // Convert to base64 for local storage (demo purpose)
+            const reader = new FileReader();
+            reader.onloadend = () => {
+                const base64 = reader.result;
+                // Add to media library
+                const media = addMedia({
+                    url: base64,
+                    name: file.name,
+                    alt: file.name.split('.')[0],
+                    type: file.type,
+                    size: file.size,
+                });
+                // Set as article image
+                setFormData(prev => ({ ...prev, image: base64 }));
+                setUploadingImage(false);
+            };
+            reader.readAsDataURL(file);
+        } catch (error) {
+            console.error('Upload error:', error);
+            setUploadingImage(false);
+        }
+    };
+
+    // Generate SEO with AI
+    const handleGenerateSEO = async () => {
+        if (!settings.openaiApiKey) {
+            setSeoError('সেটিংসে OpenAI API কী যোগ করুন');
+            return;
+        }
+
+        if (!formData.content || !formData.title) {
+            setSeoError('SEO জেনারেট করতে শিরোনাম ও বিষয়বস্তু প্রয়োজন');
+            return;
+        }
+
+        setIsGeneratingSEO(true);
+        setSeoError('');
+
+        try {
+            const seoData = await generateSEOWithAI(formData.content, formData.title);
+            setFormData(prev => ({
+                ...prev,
+                seo: { ...prev.seo, ...seoData },
+            }));
+        } catch (error) {
+            setSeoError('SEO জেনারেট করতে সমস্যা হয়েছে। আবার চেষ্টা করুন।');
+        } finally {
+            setIsGeneratingSEO(false);
+        }
     };
 
     const handleSubmit = (e) => {
@@ -165,6 +244,22 @@ function ArticleForm() {
                             </div>
 
                             <div className="admin-form-group">
+                                <label className="admin-form-label">স্লাগ (URL)</label>
+                                <input
+                                    type="text"
+                                    name="slug"
+                                    className="admin-form-input"
+                                    placeholder="auto-generated-from-title"
+                                    value={formData.slug}
+                                    onChange={handleChange}
+                                    style={{ fontFamily: 'monospace' }}
+                                />
+                                <small style={{ color: 'var(--color-text-muted)' }}>
+                                    স্বয়ংক্রিয়ভাবে শিরোনাম থেকে তৈরি হয়
+                                </small>
+                            </div>
+
+                            <div className="admin-form-group">
                                 <label className="admin-form-label">সংক্ষেপ *</label>
                                 <textarea
                                     name="excerpt"
@@ -223,28 +318,43 @@ function ArticleForm() {
                                 </div>
                             </div>
 
-                            {/* Featured Image with Media Library */}
+                            {/* Featured Image with Upload */}
                             <div className="admin-form-group">
                                 <label className="admin-form-label">ফিচার ছবি *</label>
-                                <div style={{ display: 'flex', gap: 'var(--space-sm)' }}>
+                                <div style={{ display: 'flex', gap: 'var(--space-sm)', flexWrap: 'wrap' }}>
                                     <input
-                                        type="url"
-                                        name="image"
-                                        className="admin-form-input"
-                                        placeholder="https://example.com/image.jpg"
-                                        value={formData.image}
-                                        onChange={handleChange}
-                                        required
-                                        style={{ flex: 1 }}
+                                        type="file"
+                                        ref={fileInputRef}
+                                        accept="image/*"
+                                        onChange={handleFileUpload}
+                                        style={{ display: 'none' }}
                                     />
+                                    <button
+                                        type="button"
+                                        className="admin-btn admin-btn-primary"
+                                        onClick={() => fileInputRef.current?.click()}
+                                        disabled={uploadingImage}
+                                    >
+                                        {uploadingImage ? '⏳ আপলোড হচ্ছে...' : '📤 ছবি আপলোড'}
+                                    </button>
                                     <button
                                         type="button"
                                         className="admin-btn admin-btn-secondary"
                                         onClick={() => setShowMediaModal(true)}
                                     >
-                                        📁 লাইব্রেরি
+                                        📁 লাইব্রেরি থেকে
                                     </button>
                                 </div>
+                                <input
+                                    type="text"
+                                    name="image"
+                                    className="admin-form-input"
+                                    placeholder="অথবা URL পেস্ট করুন"
+                                    value={formData.image?.startsWith('data:') ? 'আপলোড করা ছবি' : formData.image}
+                                    onChange={handleChange}
+                                    style={{ marginTop: 'var(--space-sm)' }}
+                                    disabled={formData.image?.startsWith('data:')}
+                                />
                                 {formData.image && (
                                     <div style={{ marginTop: 'var(--space-md)' }}>
                                         <img
@@ -364,14 +474,40 @@ function ArticleForm() {
 
                     {activeTab === 'seo' && (
                         <>
+                            {/* AI Generate Button */}
                             <div style={{
-                                padding: 'var(--space-md)',
-                                background: 'rgba(124, 58, 237, 0.1)',
-                                borderRadius: 'var(--radius-md)',
-                                marginBottom: 'var(--space-lg)',
+                                padding: 'var(--space-lg)',
+                                background: 'linear-gradient(135deg, rgba(124, 58, 237, 0.2), rgba(236, 72, 153, 0.2))',
+                                borderRadius: 'var(--radius-lg)',
+                                marginBottom: 'var(--space-xl)',
                                 border: '1px solid rgba(124, 58, 237, 0.3)',
                             }}>
-                                <strong>💡 SEO টিপস:</strong> সার্চ ইঞ্জিনে ভালো র‍্যাংকিং এর জন্য সঠিকভাবে SEO ফিল্ড পূরণ করুন।
+                                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: 'var(--space-md)' }}>
+                                    <div>
+                                        <strong style={{ color: 'var(--color-text-primary)' }}>🤖 AI দিয়ে SEO অটো-জেনারেট</strong>
+                                        <p style={{ color: 'var(--color-text-secondary)', fontSize: 'var(--text-sm)', marginTop: 'var(--space-xs)' }}>
+                                            ChatGPT বিষয়বস্তু বিশ্লেষণ করে SEO ফিল্ড পূরণ করবে
+                                        </p>
+                                    </div>
+                                    <button
+                                        type="button"
+                                        className="admin-btn admin-btn-primary"
+                                        onClick={handleGenerateSEO}
+                                        disabled={isGeneratingSEO || !settings.openaiApiKey}
+                                    >
+                                        {isGeneratingSEO ? '⏳ জেনারেট হচ্ছে...' : '✨ AI দিয়ে জেনারেট'}
+                                    </button>
+                                </div>
+                                {seoError && (
+                                    <p style={{ color: '#ef4444', marginTop: 'var(--space-sm)', fontSize: 'var(--text-sm)' }}>
+                                        ⚠️ {seoError}
+                                    </p>
+                                )}
+                                {!settings.openaiApiKey && (
+                                    <p style={{ color: '#f59e0b', marginTop: 'var(--space-sm)', fontSize: 'var(--text-sm)' }}>
+                                        💡 <Link to="/admin/settings" style={{ color: '#f59e0b', textDecoration: 'underline' }}>সেটিংসে</Link> OpenAI API কী যোগ করুন
+                                    </p>
+                                )}
                             </div>
 
                             <div className="admin-form-group">
@@ -423,6 +559,7 @@ function ArticleForm() {
                                 background: 'rgba(220, 38, 38, 0.1)',
                                 borderRadius: 'var(--radius-md)',
                                 marginBottom: 'var(--space-lg)',
+                                marginTop: 'var(--space-xl)',
                                 border: '1px solid rgba(220, 38, 38, 0.3)',
                             }}>
                                 <strong>📰 Google News SEO</strong>
@@ -438,9 +575,6 @@ function ArticleForm() {
                                     value={formData.seo.googleNewsKeywords}
                                     onChange={handleSeoChange}
                                 />
-                                <small style={{ color: 'var(--color-text-muted)' }}>
-                                    Google News এ দৃশ্যমানতার জন্য সংবাদ সম্পর্কিত কীওয়ার্ড ব্যবহার করুন
-                                </small>
                             </div>
 
                             <div className="admin-form-group">
@@ -453,9 +587,6 @@ function ArticleForm() {
                                     value={formData.seo.canonical}
                                     onChange={handleSeoChange}
                                 />
-                                <small style={{ color: 'var(--color-text-muted)' }}>
-                                    যদি এই কন্টেন্ট অন্য কোথাও প্রথম প্রকাশিত হয়ে থাকে
-                                </small>
                             </div>
                         </>
                     )}
@@ -511,8 +642,6 @@ function ArticleForm() {
                                                 transition: 'all var(--transition-fast)',
                                             }}
                                             onClick={() => handleSelectImage(media.url)}
-                                            onMouseEnter={(e) => e.target.style.borderColor = 'var(--color-accent-primary)'}
-                                            onMouseLeave={(e) => e.target.style.borderColor = 'transparent'}
                                         >
                                             <img
                                                 src={media.url}
@@ -525,9 +654,6 @@ function ArticleForm() {
                             ) : (
                                 <div style={{ textAlign: 'center', padding: 'var(--space-2xl)', color: 'var(--color-text-muted)' }}>
                                     <p>কোনো ছবি পাওয়া যায়নি।</p>
-                                    <Link to="/admin/media" className="admin-btn admin-btn-primary" style={{ marginTop: 'var(--space-md)' }}>
-                                        📤 ছবি আপলোড করুন
-                                    </Link>
                                 </div>
                             )}
                         </div>

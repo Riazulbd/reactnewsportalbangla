@@ -12,6 +12,7 @@ function AdminSettings() {
         reorderCategories,
         getFeaturedArticles,
         setFeaturedArticles,
+        generateWebhookApiKey,
     } = useData();
 
     const [draggedCategory, setDraggedCategory] = useState(null);
@@ -227,6 +228,128 @@ function AdminSettings() {
                     <button className="admin-btn admin-btn-primary" onClick={handleSaveOpenAI}>
                         💾 সংরক্ষণ করুন
                     </button>
+                </div>
+            </div>
+
+            {/* Webhook API */}
+            <div className="admin-table-container" style={{ marginBottom: 'var(--space-xl)' }}>
+                <div className="admin-table-header">
+                    <h3 className="admin-table-title">🔗 Webhook API</h3>
+                </div>
+                <div style={{ padding: 'var(--space-lg)' }}>
+                    <p style={{ color: 'var(--color-text-secondary)', marginBottom: 'var(--space-lg)' }}>
+                        বাইরের সার্ভিস (n8n, Make, Zapier) থেকে প্রবন্ধ যোগ করতে API কী ব্যবহার করুন।
+                    </p>
+
+                    <div className="admin-form-group">
+                        <label className="admin-form-label">API কী</label>
+                        <div style={{ display: 'flex', gap: 'var(--space-sm)', alignItems: 'center' }}>
+                            <input
+                                type="text"
+                                className="admin-form-input"
+                                value={settings.webhookApiKey || ''}
+                                readOnly
+                                style={{
+                                    fontFamily: 'monospace',
+                                    flex: 1,
+                                    background: 'var(--color-bg-tertiary)',
+                                }}
+                                placeholder="API কী জেনারেট করুন"
+                            />
+                            <button
+                                className="admin-btn admin-btn-secondary"
+                                onClick={() => {
+                                    if (settings.webhookApiKey) {
+                                        navigator.clipboard.writeText(settings.webhookApiKey);
+                                        showSuccess('API কী কপি হয়েছে!');
+                                    }
+                                }}
+                                disabled={!settings.webhookApiKey}
+                                title="কপি করুন"
+                            >
+                                📋
+                            </button>
+                        </div>
+                    </div>
+
+                    <div style={{ display: 'flex', gap: 'var(--space-sm)', marginBottom: 'var(--space-lg)' }}>
+                        <button
+                            className="admin-btn admin-btn-primary"
+                            onClick={() => {
+                                generateWebhookApiKey();
+                                showSuccess('নতুন API কী জেনারেট হয়েছে!');
+                            }}
+                        >
+                            {settings.webhookApiKey ? '🔄 রিজেনারেট' : '✨ জেনারেট করুন'}
+                        </button>
+                    </div>
+
+                    {/* API Documentation */}
+                    <div style={{
+                        background: 'var(--color-bg-tertiary)',
+                        padding: 'var(--space-lg)',
+                        borderRadius: 'var(--radius-md)',
+                        border: '1px solid rgba(255,255,255,0.1)',
+                    }}>
+                        <h4 style={{ marginBottom: 'var(--space-md)', color: 'var(--color-text-primary)' }}>📚 API ব্যবহার</h4>
+
+                        <p style={{ color: 'var(--color-text-secondary)', fontSize: 'var(--text-sm)', marginBottom: 'var(--space-md)' }}>
+                            <strong>Endpoint:</strong> <code style={{ color: 'var(--color-accent-primary)' }}>{window.location.origin}/api/webhook/article</code>
+                        </p>
+
+                        <p style={{ color: 'var(--color-text-secondary)', fontSize: 'var(--text-sm)', marginBottom: 'var(--space-md)' }}>
+                            <strong>Method:</strong> POST
+                        </p>
+
+                        <p style={{ color: 'var(--color-text-secondary)', fontSize: 'var(--text-sm)', marginBottom: 'var(--space-md)' }}>
+                            <strong>Headers:</strong>
+                        </p>
+                        <pre style={{
+                            background: 'var(--color-bg-primary)',
+                            padding: 'var(--space-md)',
+                            borderRadius: 'var(--radius-sm)',
+                            fontSize: 'var(--text-xs)',
+                            overflow: 'auto',
+                            marginBottom: 'var(--space-md)',
+                        }}>
+                            {`Content-Type: application/json
+X-API-Key: ${settings.webhookApiKey || 'YOUR_API_KEY'}`}
+                        </pre>
+
+                        <p style={{ color: 'var(--color-text-secondary)', fontSize: 'var(--text-sm)', marginBottom: 'var(--space-md)' }}>
+                            <strong>Body (JSON):</strong>
+                        </p>
+                        <pre style={{
+                            background: 'var(--color-bg-primary)',
+                            padding: 'var(--space-md)',
+                            borderRadius: 'var(--radius-sm)',
+                            fontSize: 'var(--text-xs)',
+                            overflow: 'auto',
+                        }}>
+                            {`{
+  "title": "প্রবন্ধের শিরোনাম",
+  "content": "প্রবন্ধের বিস্তারিত...",
+  "excerpt": "সংক্ষেপ",
+  "category": "politics",
+  "author": "লেখক নাম",
+  "image": "https://example.com/image.jpg",
+  "featured": false,
+  "tags": ["ট্যাগ১", "ট্যাগ২"]
+}`}
+                        </pre>
+
+                        <div style={{
+                            marginTop: 'var(--space-md)',
+                            padding: 'var(--space-md)',
+                            background: 'rgba(239, 68, 68, 0.1)',
+                            borderRadius: 'var(--radius-sm)',
+                            border: '1px solid rgba(239, 68, 68, 0.3)',
+                        }}>
+                            <p style={{ color: '#ef4444', fontSize: 'var(--text-sm)' }}>
+                                ⚠️ <strong>সতর্কতা:</strong> API কী গোপন রাখুন। কেউ কী পেলে প্রবন্ধ যোগ করতে পারবে।
+                            </p>
+                        </div>
+                    </div>
                 </div>
             </div>
 

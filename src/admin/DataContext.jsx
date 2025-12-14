@@ -20,6 +20,7 @@ export function DataProvider({ children }) {
         siteLogo: '',
         openaiApiKey: '',
         openaiModel: 'gpt-3.5-turbo',
+        webhookApiKey: '',
     });
     const [theme, setTheme] = useState('dark');
     const [user, setUser] = useState(null);
@@ -193,6 +194,34 @@ export function DataProvider({ children }) {
 
     const authenticateUser = (username, password) => {
         return users.find(u => u.username === username && u.password === password);
+    };
+
+    // Webhook API Key Functions
+    const generateWebhookApiKey = () => {
+        const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789';
+        let key = 'whk_';
+        for (let i = 0; i < 32; i++) {
+            key += chars.charAt(Math.floor(Math.random() * chars.length));
+        }
+        saveSettings({ webhookApiKey: key });
+        return key;
+    };
+
+    const validateWebhookApiKey = (providedKey) => {
+        if (!settings.webhookApiKey) return false;
+        return settings.webhookApiKey === providedKey;
+    };
+
+    const addArticleViaWebhook = (articleData, apiKey) => {
+        if (!validateWebhookApiKey(apiKey)) {
+            return { success: false, error: 'Invalid API key' };
+        }
+        try {
+            const newArticle = addArticle(articleData);
+            return { success: true, article: newArticle };
+        } catch (error) {
+            return { success: false, error: error.message };
+        }
     };
 
     // Article CRUD
@@ -440,6 +469,9 @@ export function DataProvider({ children }) {
             deleteUser,
             getUserById,
             authenticateUser,
+            generateWebhookApiKey,
+            validateWebhookApiKey,
+            addArticleViaWebhook,
         }}>
             {children}
         </DataContext.Provider>

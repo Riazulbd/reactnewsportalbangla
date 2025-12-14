@@ -1,4 +1,5 @@
 import { createContext, useContext, useState, useEffect } from 'react';
+import { authApi } from '../services/api';
 
 const AuthContext = createContext();
 
@@ -8,79 +9,122 @@ export function AuthProvider({ children }) {
     const [loading, setLoading] = useState(true);
 
     useEffect(() => {
-        // Check localStorage on mount (using localStorage instead of sessionStorage for persistence)
-        const authData = localStorage.getItem('adminAuth');
-        if (authData) {
-            try {
-                const parsed = JSON.parse(authData);
-                if (parsed && parsed.user) {
+        // Check for existing token
+        const checkAuth = async () => {
+            const token = localStorage.getItem('authToken');
+
+            if (token) {
+                try {
+                    const userData = await authApi.getCurrentUser();
+                    setUser(userData);
                     setIsAuthenticated(true);
-                    setUser(parsed.user);
+                } catch {
+                    // Token invalid, clear it
+                    localStorage.removeItem('authToken');
                 }
-            } catch (e) {
-                localStorage.removeItem('adminAuth');
+            } else {
+                // Check localStorage fallback
+                const authData = localStorage.getItem('adminAuth');
+                if (authData) {
+                    const { user: storedUser } = JSON.parse(authData);
+                    setUser(storedUser);
+                    setIsAuthenticated(true);
+                }
             }
-        }
-        setLoading(false);
+
+            setLoading(false);
+        };
+
+        checkAuth();
     }, []);
 
-    const login = (username, password) => {
-        // First check default credentials (always works)
-        if (username === 'admin' && password === 'admin123') {
-            const userData = {
-                id: 1,
-                username: 'admin',
-                name: 'অ্যাডমিন',
-                email: 'admin@example.com',
-                role: 'admin'
-            };
-            setIsAuthenticated(true);
-            setUser(userData);
-            localStorage.setItem('adminAuth', JSON.stringify({ user: userData }));
-            return { success: true };
-        }
+    const login = async (username, password) => {
+        try {
+            // Try API login first
+            const result = await authApi.login(username, password);
 
-        // Then check users from localStorage
-        const storedUsers = localStorage.getItem('newsUsers');
-        if (storedUsers) {
-            try {
+            if (result.success) {
+                setUser(result.user);
+                setIsAuthenticated(true);
+                return { success: true };
+            }
+
+            return { success: false, error: result.error || 'লগইন ব্যর্থ' };
+        } catch (error) {
+            console.log('API login failed, trying fallback:', error.message);
+
+            // Fallback: check default admin
+            if (username === 'admin' && password === 'admin123') {
+                const userData = {
+                    id: 1,
+                    username: 'admin',
+                    name: 'অ্যাডমিন',
+                    email: 'admin@example.com',
+                    role: 'admin'
+                };
+                setUser(userData);
+                setIsAuthenticated(true);
+                localStorage.setItem('adminAuth', JSON.stringify({ user: userData }));
+                return { success: true };
+            }
+
+            // Fallback: check localStorage users
+            const storedUsers = localStorage.getItem('newsUsers');
+            if (storedUsers) {
                 const users = JSON.parse(storedUsers);
-                const foundUser = users.find(u => u.username === username && u.password === password);
-
-                if (foundUser) {
+                const found = users.find(u => u.username === username && u.password === password);
+                if (found) {
                     const userData = {
-                        id: foundUser.id,
-                        username: foundUser.username,
-                        name: foundUser.name,
-                        email: foundUser.email,
-                        role: foundUser.role
+                        id: found.id,
+                        username: found.username,
+                        name: found.name,
+                        email: found.email,
+                        role: found.role
                     };
-                    setIsAuthenticated(true);
                     setUser(userData);
+                    setIsAuthenticated(true);
                     localStorage.setItem('adminAuth', JSON.stringify({ user: userData }));
                     return { success: true };
                 }
-            } catch (e) {
-                console.error('Error parsing users:', e);
             }
-        }
 
-        return { success: false, error: 'ভুল ইউজারনেম বা পাসওয়ার্ড' };
+            return { success: false, error: 'ভুল ইউজারনেম বা পাসওয়ার্ড' };
+        }
     };
 
     const logout = () => {
-        setIsAuthenticated(false);
-        setUser(null);
+        authApi.logout();
         localStorage.removeItem('adminAuth');
+        setUser(null);
+        setIsAuthenticated(false);
     };
 
+    if (loading) {
+        return (
+            <div style={{
+                display: 'flex',
+                justifyContent: 'center',
+                alignItems: 'center',
+                height: '100vh',
+                background: 'var(--color-bg-primary)',
+                color: 'var(--color-text-primary)'
+            }}>
+                <div>লোড হচ্ছে...</div>
+            </div>
+        );
+    }
+
     return (
-        <AuthContext.Provider value={{ isAuthenticated, user, loading, login, logout }}>
+        <AuthContext.Provider value={{ isAuthenticated, user, login, logout }}>
             {children}
         </AuthContext.Provider>
     );
 }
 
 export function useAuth() {
-    return useContext(AuthContext);
+    const context = useContext(AuthContext);
+    if (!context) {
+        throw new Error('useAuth must be used within AuthProvider');
+    }
+    return context;
 }

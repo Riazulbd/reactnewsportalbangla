@@ -1,12 +1,17 @@
-import { createContext, useContext, useState, useEffect } from 'react';
-import { articles as initialArticles, categories as initialCategories } from '../data/articles';
+import { createContext, useContext, useState, useEffect, useCallback } from 'react';
+import { articlesApi, categoriesApi, settingsApi, authApi } from '../services/api';
 
 const DataContext = createContext();
 
-// Default users with roles
-const defaultUsers = [
-    { id: 1, username: 'admin', password: 'admin123', name: 'অ্যাডমিন', email: 'admin@example.com', role: 'admin' },
-];
+// Check if API is available
+const isApiAvailable = async () => {
+    try {
+        const response = await fetch('/api/health');
+        return response.ok;
+    } catch {
+        return false;
+    }
+};
 
 export function DataProvider({ children }) {
     const [articles, setArticles] = useState([]);
@@ -24,87 +29,78 @@ export function DataProvider({ children }) {
     });
     const [theme, setTheme] = useState('dark');
     const [user, setUser] = useState(null);
+    const [loading, setLoading] = useState(true);
+    const [useApi, setUseApi] = useState(false);
 
+    // Load data on mount
     useEffect(() => {
-        // Load from localStorage or use initial data
-        const storedArticles = localStorage.getItem('newsArticles');
-        const storedCategories = localStorage.getItem('newsCategories');
-        const storedTheme = localStorage.getItem('newsTheme');
-        const storedMedia = localStorage.getItem('newsMediaLibrary');
-        const storedSettings = localStorage.getItem('newsSettings');
-        const storedUser = localStorage.getItem('newsUser');
-        const storedUsers = localStorage.getItem('newsUsers');
+        const loadData = async () => {
+            setLoading(true);
 
-        if (storedArticles) {
-            setArticles(JSON.parse(storedArticles));
-        } else {
-            setArticles(initialArticles);
-            localStorage.setItem('newsArticles', JSON.stringify(initialArticles));
-        }
+            // Check if API is available
+            const apiAvailable = await isApiAvailable();
+            setUseApi(apiAvailable);
 
-        if (storedCategories) {
-            setCategories(JSON.parse(storedCategories));
-        } else {
-            setCategories(initialCategories);
-            localStorage.setItem('newsCategories', JSON.stringify(initialCategories));
-        }
+            if (apiAvailable) {
+                // Load from API
+                try {
+                    const [articlesData, categoriesData, settingsData] = await Promise.all([
+                        articlesApi.getAll(),
+                        categoriesApi.getAll(),
+                        settingsApi.getAll().catch(() => ({})),
+                    ]);
+                    setArticles(articlesData || []);
+                    setCategories(categoriesData || []);
+                    setSettings(prev => ({ ...prev, ...settingsData }));
 
-        if (storedTheme) {
-            setTheme(storedTheme);
-            document.documentElement.setAttribute('data-theme', storedTheme);
-        }
+                    // Try to get current user
+                    const token = localStorage.getItem('authToken');
+                    if (token) {
+                        try {
+                            const userData = await authApi.getCurrentUser();
+                            setUser(userData);
+                        } catch {
+                            localStorage.removeItem('authToken');
+                        }
+                    }
 
-        if (storedMedia) {
-            setMediaLibrary(JSON.parse(storedMedia));
-        }
+                    // Load users list
+                    try {
+                        const usersData = await authApi.getUsers();
+                        setUsers(usersData || []);
+                    } catch {
+                        setUsers([]);
+                    }
+                } catch (error) {
+                    console.error('API load error:', error);
+                }
+            } else {
+                // Fallback to localStorage
+                const { articles: initialArticles, categories: initialCategories } = await import('../data/articles');
 
-        if (storedSettings) {
-            setSettings(prev => ({ ...prev, ...JSON.parse(storedSettings) }));
-        }
+                const storedArticles = localStorage.getItem('newsArticles');
+                const storedCategories = localStorage.getItem('newsCategories');
+                const storedSettings = localStorage.getItem('newsSettings');
+                const storedUsers = localStorage.getItem('newsUsers');
 
-        if (storedUser) {
-            setUser(JSON.parse(storedUser));
-        }
+                setArticles(storedArticles ? JSON.parse(storedArticles) : initialArticles);
+                setCategories(storedCategories ? JSON.parse(storedCategories) : initialCategories);
+                if (storedSettings) setSettings(prev => ({ ...prev, ...JSON.parse(storedSettings) }));
+                if (storedUsers) setUsers(JSON.parse(storedUsers));
+            }
 
-        if (storedUsers) {
-            setUsers(JSON.parse(storedUsers));
-        } else {
-            setUsers(defaultUsers);
-            localStorage.setItem('newsUsers', JSON.stringify(defaultUsers));
-        }
+            // Load theme
+            const storedTheme = localStorage.getItem('newsTheme');
+            if (storedTheme) {
+                setTheme(storedTheme);
+                document.documentElement.setAttribute('data-theme', storedTheme);
+            }
+
+            setLoading(false);
+        };
+
+        loadData();
     }, []);
-
-    // Save functions
-    const saveArticles = (newArticles) => {
-        setArticles(newArticles);
-        localStorage.setItem('newsArticles', JSON.stringify(newArticles));
-    };
-
-    const saveCategories = (newCategories) => {
-        setCategories(newCategories);
-        localStorage.setItem('newsCategories', JSON.stringify(newCategories));
-    };
-
-    const saveMedia = (newMedia) => {
-        setMediaLibrary(newMedia);
-        localStorage.setItem('newsMediaLibrary', JSON.stringify(newMedia));
-    };
-
-    const saveSettings = (newSettings) => {
-        const updated = { ...settings, ...newSettings };
-        setSettings(updated);
-        localStorage.setItem('newsSettings', JSON.stringify(updated));
-    };
-
-    const saveUser = (userData) => {
-        setUser(userData);
-        localStorage.setItem('newsUser', JSON.stringify(userData));
-    };
-
-    const saveUsers = (newUsers) => {
-        setUsers(newUsers);
-        localStorage.setItem('newsUsers', JSON.stringify(newUsers));
-    };
 
     // Theme toggle
     const toggleTheme = () => {
@@ -114,274 +110,297 @@ export function DataProvider({ children }) {
         document.documentElement.setAttribute('data-theme', newTheme);
     };
 
-    // Basic slug generation (fallback)
-    const generateSlug = (title) => {
-        return title
-            .toLowerCase()
-            .replace(/[^\w\s-]/g, '')
-            .replace(/\s+/g, '-')
-            .replace(/-+/g, '-')
-            .trim();
-    };
-
-    // AI-powered English slug generation
-    const generateSlugWithAI = async (title) => {
-        if (!settings.openaiApiKey) {
-            return generateSlug(title);
-        }
-
-        try {
-            const response = await fetch('https://api.openai.com/v1/chat/completions', {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                    'Authorization': `Bearer ${settings.openaiApiKey}`,
-                },
-                body: JSON.stringify({
-                    model: settings.openaiModel || 'gpt-3.5-turbo',
-                    messages: [
-                        {
-                            role: 'system',
-                            content: 'You are a URL slug generator. Convert the given title (which may be in Bengali or any language) to an SEO-friendly English URL slug. Use only lowercase letters, numbers, and hyphens. Max 60 chars. Respond with ONLY the slug, nothing else.'
-                        },
-                        {
-                            role: 'user',
-                            content: title
-                        }
-                    ],
-                    temperature: 0.3,
-                    max_tokens: 100,
-                }),
-            });
-
-            if (!response.ok) {
-                return generateSlug(title);
+    // Articles CRUD
+    const addArticle = useCallback(async (article) => {
+        if (useApi) {
+            try {
+                const newArticle = await articlesApi.create(article);
+                setArticles(prev => [newArticle, ...prev]);
+                return newArticle;
+            } catch (error) {
+                console.error('Add article error:', error);
+                throw error;
             }
-
-            const data = await response.json();
-            const slug = data.choices[0].message.content.trim().toLowerCase().replace(/[^a-z0-9-]/g, '-').replace(/-+/g, '-');
-            return slug;
-        } catch (error) {
-            console.error('AI Slug Error:', error);
-            return generateSlug(title);
+        } else {
+            const newArticle = {
+                ...article,
+                id: Math.max(...articles.map(a => a.id || 0), 0) + 1,
+                createdAt: new Date().toISOString(),
+            };
+            const updated = [newArticle, ...articles];
+            setArticles(updated);
+            localStorage.setItem('newsArticles', JSON.stringify(updated));
+            return newArticle;
         }
-    };
+    }, [useApi, articles]);
 
-    // User Management
-    const addUser = (userData) => {
-        const newUser = {
-            ...userData,
-            id: Math.max(...users.map(u => u.id), 0) + 1,
-            createdAt: new Date().toISOString(),
-        };
-        saveUsers([...users, newUser]);
-        return newUser;
-    };
-
-    const updateUser = (id, updates) => {
-        const updated = users.map(u =>
-            u.id === id ? { ...u, ...updates } : u
-        );
-        saveUsers(updated);
-    };
-
-    const deleteUser = (id) => {
-        if (id === 1) return; // Can't delete main admin
-        saveUsers(users.filter(u => u.id !== id));
-    };
-
-    const getUserById = (id) => users.find(u => u.id === id);
-
-    const authenticateUser = (username, password) => {
-        return users.find(u => u.username === username && u.password === password);
-    };
-
-    // Webhook API Key Functions
-    const generateWebhookApiKey = () => {
-        const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789';
-        let key = 'whk_';
-        for (let i = 0; i < 32; i++) {
-            key += chars.charAt(Math.floor(Math.random() * chars.length));
+    const updateArticle = useCallback(async (id, updates) => {
+        if (useApi) {
+            try {
+                const updated = await articlesApi.update(id, updates);
+                setArticles(prev => prev.map(a => a.id === id ? updated : a));
+                return updated;
+            } catch (error) {
+                console.error('Update article error:', error);
+                throw error;
+            }
+        } else {
+            const updated = articles.map(a =>
+                a.id === parseInt(id) ? { ...a, ...updates, updatedAt: new Date().toISOString() } : a
+            );
+            setArticles(updated);
+            localStorage.setItem('newsArticles', JSON.stringify(updated));
+            return updated.find(a => a.id === parseInt(id));
         }
-        saveSettings({ webhookApiKey: key });
-        return key;
-    };
+    }, [useApi, articles]);
 
-    const validateWebhookApiKey = (providedKey) => {
-        if (!settings.webhookApiKey) return false;
-        return settings.webhookApiKey === providedKey;
-    };
-
-    const addArticleViaWebhook = (articleData, apiKey) => {
-        if (!validateWebhookApiKey(apiKey)) {
-            return { success: false, error: 'Invalid API key' };
+    const deleteArticle = useCallback(async (id) => {
+        if (useApi) {
+            try {
+                await articlesApi.delete(id);
+                setArticles(prev => prev.filter(a => a.id !== id));
+            } catch (error) {
+                console.error('Delete article error:', error);
+                throw error;
+            }
+        } else {
+            const updated = articles.filter(a => a.id !== parseInt(id));
+            setArticles(updated);
+            localStorage.setItem('newsArticles', JSON.stringify(updated));
         }
-        try {
-            const newArticle = addArticle(articleData);
-            return { success: true, article: newArticle };
-        } catch (error) {
-            return { success: false, error: error.message };
-        }
-    };
+    }, [useApi, articles]);
 
-    // Article CRUD
-    const addArticle = (article) => {
-        const newArticle = {
-            ...article,
-            id: Math.max(...articles.map(a => a.id), 0) + 1,
-            slug: article.slug || generateSlug(article.title),
-            date: new Date().toLocaleDateString('bn-BD'),
-            tags: article.tags || [],
-            seo: article.seo || {
-                metaTitle: '',
-                metaDescription: '',
-                keywords: '',
-                canonical: '',
-                googleNewsKeywords: '',
-            },
-        };
-        saveArticles([newArticle, ...articles]);
-        return newArticle;
-    };
+    const getArticleById = useCallback((id) => {
+        return articles.find(a => a.id === parseInt(id) || a.slug === id);
+    }, [articles]);
 
-    const updateArticle = (id, updates) => {
-        const updated = articles.map(a =>
-            a.id === id ? { ...a, ...updates } : a
-        );
-        saveArticles(updated);
-    };
+    const getArticlesByCategory = useCallback((categoryId) => {
+        return articles.filter(a => a.category === categoryId);
+    }, [articles]);
 
-    const deleteArticle = (id) => {
-        saveArticles(articles.filter(a => a.id !== id));
-        // Remove from featured if present
-        if (settings.featuredArticleIds?.includes(id)) {
-            saveSettings({
-                featuredArticleIds: settings.featuredArticleIds.filter(fid => fid !== id)
-            });
-        }
-    };
-
-    const getArticleById = (id) => articles.find(a => a.id === parseInt(id));
-
-    const getArticlesByCategory = (categoryId) => {
-        const allCategoryIds = [categoryId];
-        const getSubcategoryIds = (parentId) => {
-            categories.forEach(cat => {
-                if (cat.parentId === parentId) {
-                    allCategoryIds.push(cat.id);
-                    getSubcategoryIds(cat.id);
-                }
-            });
-        };
-        getSubcategoryIds(categoryId);
-        return articles.filter(a => allCategoryIds.includes(a.category));
-    };
-
-    const getFeaturedArticles = () => {
+    const getFeaturedArticles = useCallback(() => {
         if (settings.featuredArticleIds?.length > 0) {
             return settings.featuredArticleIds
                 .map(id => articles.find(a => a.id === id))
                 .filter(Boolean);
         }
         return articles.filter(a => a.featured).slice(0, 5);
-    };
+    }, [articles, settings.featuredArticleIds]);
 
-    const setFeaturedArticles = (articleIds) => {
-        saveSettings({ featuredArticleIds: articleIds.slice(0, 5) });
-    };
+    const setFeaturedArticles = useCallback(async (ids) => {
+        await saveSettings({ featuredArticleIds: ids });
+    }, []);
 
-    const getHeroArticle = () => {
-        const featured = getFeaturedArticles();
-        return featured[0] || articles[0];
-    };
-
-    const searchArticles = (query) => {
-        const lowerQuery = query.toLowerCase();
-        return articles.filter(a =>
-            a.title.toLowerCase().includes(lowerQuery) ||
-            a.excerpt.toLowerCase().includes(lowerQuery) ||
-            (a.tags && a.tags.some(tag => tag.toLowerCase().includes(lowerQuery)))
-        );
-    };
-
-    // Category CRUD
-    const addCategory = (category) => {
-        const newCategory = {
-            ...category,
-            id: category.name.toLowerCase().replace(/\s+/g, '-').replace(/[^\w-]/g, ''),
-            parentId: category.parentId || null,
-            order: categories.length,
-        };
-        saveCategories([...categories, newCategory]);
-        return newCategory;
-    };
-
-    const updateCategory = (id, updates) => {
-        const updated = categories.map(c =>
-            c.id === id ? { ...c, ...updates } : c
-        );
-        saveCategories(updated);
-    };
-
-    const deleteCategory = (id) => {
-        const idsToDelete = [id];
-        const getSubcategoryIds = (parentId) => {
-            categories.forEach(cat => {
-                if (cat.parentId === parentId) {
-                    idsToDelete.push(cat.id);
-                    getSubcategoryIds(cat.id);
-                }
-            });
-        };
-        getSubcategoryIds(id);
-        saveCategories(categories.filter(c => !idsToDelete.includes(c.id)));
-    };
-
-    const getMainCategories = () => {
-        const mainCats = categories.filter(c => !c.parentId);
-        return mainCats.sort((a, b) => (a.order || 0) - (b.order || 0));
-    };
-
-    const getSubcategories = (parentId) => categories.filter(c => c.parentId === parentId);
-
-    const getAllCategories = () => categories;
-
-    const reorderCategories = (orderedIds) => {
-        const updated = categories.map(c => ({
-            ...c,
-            order: orderedIds.indexOf(c.id),
-        }));
-        saveCategories(updated);
-    };
-
-    // Media Library with file upload
-    const addMedia = (media) => {
-        const newMedia = {
-            ...media,
-            id: Date.now(),
-            uploadedAt: new Date().toISOString(),
-        };
-        saveMedia([newMedia, ...mediaLibrary]);
-        return newMedia;
-    };
-
-    const deleteMedia = (id) => {
-        saveMedia(mediaLibrary.filter(m => m.id !== id));
-    };
-
-    const searchMedia = (query) => {
-        const lowerQuery = query.toLowerCase();
-        return mediaLibrary.filter(m =>
-            m.name?.toLowerCase().includes(lowerQuery) ||
-            m.alt?.toLowerCase().includes(lowerQuery)
-        );
-    };
-
-    // OpenAI Integration
-    const generateSEOWithAI = async (content, title) => {
-        if (!settings.openaiApiKey) {
-            throw new Error('OpenAI API কী সেটিংসে যোগ করুন');
+    const getHeroArticle = useCallback(() => {
+        if (settings.heroArticleId) {
+            return articles.find(a => a.id === settings.heroArticleId);
         }
+        return articles.find(a => a.featured) || articles[0];
+    }, [articles, settings.heroArticleId]);
+
+    const searchArticles = useCallback((query) => {
+        const lower = query.toLowerCase();
+        return articles.filter(a =>
+            a.title?.toLowerCase().includes(lower) ||
+            a.excerpt?.toLowerCase().includes(lower) ||
+            a.content?.toLowerCase().includes(lower)
+        );
+    }, [articles]);
+
+    // Categories CRUD
+    const addCategory = useCallback(async (category) => {
+        if (useApi) {
+            try {
+                const newCat = await categoriesApi.create(category);
+                setCategories(prev => [...prev, newCat]);
+                return newCat;
+            } catch (error) {
+                console.error('Add category error:', error);
+                throw error;
+            }
+        } else {
+            const newCat = {
+                ...category,
+                id: category.slug || category.name.toLowerCase().replace(/\s+/g, '-'),
+            };
+            const updated = [...categories, newCat];
+            setCategories(updated);
+            localStorage.setItem('newsCategories', JSON.stringify(updated));
+            return newCat;
+        }
+    }, [useApi, categories]);
+
+    const updateCategory = useCallback(async (id, updates) => {
+        if (useApi) {
+            try {
+                const updated = await categoriesApi.update(id, updates);
+                setCategories(prev => prev.map(c => c.id === id ? updated : c));
+                return updated;
+            } catch (error) {
+                console.error('Update category error:', error);
+                throw error;
+            }
+        } else {
+            const updated = categories.map(c =>
+                c.id === id ? { ...c, ...updates } : c
+            );
+            setCategories(updated);
+            localStorage.setItem('newsCategories', JSON.stringify(updated));
+            return updated.find(c => c.id === id);
+        }
+    }, [useApi, categories]);
+
+    const deleteCategory = useCallback(async (id) => {
+        if (useApi) {
+            try {
+                await categoriesApi.delete(id);
+                setCategories(prev => prev.filter(c => c.id !== id));
+            } catch (error) {
+                console.error('Delete category error:', error);
+                throw error;
+            }
+        } else {
+            const updated = categories.filter(c => c.id !== id);
+            setCategories(updated);
+            localStorage.setItem('newsCategories', JSON.stringify(updated));
+        }
+    }, [useApi, categories]);
+
+    const getMainCategories = useCallback(() => {
+        const mainCats = categories.filter(c => !c.parent_id && !c.parentId);
+        if (settings.categoryOrder?.length > 0) {
+            return settings.categoryOrder
+                .map(id => mainCats.find(c => c.id === id || c.slug === id))
+                .filter(Boolean)
+                .concat(mainCats.filter(c =>
+                    !settings.categoryOrder.includes(c.id) &&
+                    !settings.categoryOrder.includes(c.slug)
+                ));
+        }
+        return mainCats;
+    }, [categories, settings.categoryOrder]);
+
+    const getSubcategories = useCallback((parentId) => {
+        return categories.filter(c => c.parent_id === parentId || c.parentId === parentId);
+    }, [categories]);
+
+    const getAllCategories = useCallback(() => categories, [categories]);
+
+    const reorderCategories = useCallback(async (order) => {
+        if (useApi) {
+            try {
+                await categoriesApi.reorder(order);
+            } catch (error) {
+                console.error('Reorder error:', error);
+            }
+        }
+        await saveSettings({ categoryOrder: order });
+    }, [useApi]);
+
+    // Settings
+    const saveSettings = useCallback(async (newSettings) => {
+        const updated = { ...settings, ...newSettings };
+        setSettings(updated);
+
+        if (useApi) {
+            try {
+                await settingsApi.save(newSettings);
+            } catch (error) {
+                console.error('Save settings error:', error);
+            }
+        }
+        localStorage.setItem('newsSettings', JSON.stringify(updated));
+    }, [useApi, settings]);
+
+    // Webhook API Key
+    const generateWebhookApiKey = useCallback(async () => {
+        if (useApi) {
+            try {
+                const { apiKey } = await settingsApi.generateApiKey();
+                setSettings(prev => ({ ...prev, webhookApiKey: apiKey }));
+                return apiKey;
+            } catch (error) {
+                console.error('Generate API key error:', error);
+            }
+        }
+        // Fallback
+        const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789';
+        let key = 'whk_';
+        for (let i = 0; i < 32; i++) {
+            key += chars.charAt(Math.floor(Math.random() * chars.length));
+        }
+        await saveSettings({ webhookApiKey: key });
+        return key;
+    }, [useApi, saveSettings]);
+
+    // Users (API only for full CRUD)
+    const addUser = useCallback(async (userData) => {
+        if (useApi) {
+            try {
+                const newUser = await authApi.createUser(userData);
+                setUsers(prev => [...prev, newUser]);
+                return newUser;
+            } catch (error) {
+                console.error('Add user error:', error);
+                throw error;
+            }
+        }
+        // Fallback
+        const newUser = { ...userData, id: users.length + 1, createdAt: new Date().toISOString() };
+        const updated = [...users, newUser];
+        setUsers(updated);
+        localStorage.setItem('newsUsers', JSON.stringify(updated));
+        return newUser;
+    }, [useApi, users]);
+
+    const updateUser = useCallback(async (id, updates) => {
+        if (useApi) {
+            try {
+                const updated = await authApi.updateUser(id, updates);
+                setUsers(prev => prev.map(u => u.id === id ? updated : u));
+                return updated;
+            } catch (error) {
+                console.error('Update user error:', error);
+                throw error;
+            }
+        }
+        const updated = users.map(u => u.id === id ? { ...u, ...updates } : u);
+        setUsers(updated);
+        localStorage.setItem('newsUsers', JSON.stringify(updated));
+        return updated.find(u => u.id === id);
+    }, [useApi, users]);
+
+    const deleteUser = useCallback(async (id) => {
+        if (id === 1) return;
+        if (useApi) {
+            try {
+                await authApi.deleteUser(id);
+                setUsers(prev => prev.filter(u => u.id !== id));
+            } catch (error) {
+                console.error('Delete user error:', error);
+                throw error;
+            }
+        } else {
+            const updated = users.filter(u => u.id !== id);
+            setUsers(updated);
+            localStorage.setItem('newsUsers', JSON.stringify(updated));
+        }
+    }, [useApi, users]);
+
+    const getUserById = useCallback((id) => users.find(u => u.id === id), [users]);
+
+    // Slug generation
+    const generateSlug = useCallback((title) => {
+        return title
+            .toLowerCase()
+            .replace(/[^\w\s-]/g, '')
+            .replace(/\s+/g, '-')
+            .replace(/-+/g, '-')
+            .trim();
+    }, []);
+
+    const generateSlugWithAI = useCallback(async (title) => {
+        if (!settings.openaiApiKey) return generateSlug(title);
 
         try {
             const response = await fetch('https://api.openai.com/v1/chat/completions', {
@@ -395,39 +414,117 @@ export function DataProvider({ children }) {
                     messages: [
                         {
                             role: 'system',
-                            content: 'You are an SEO expert. Generate SEO metadata in JSON format with these fields: metaTitle (max 60 chars), metaDescription (max 160 chars), keywords (comma-separated), googleNewsKeywords (comma-separated news keywords). Respond ONLY with valid JSON, no markdown.'
+                            content: 'Convert the title to an SEO-friendly English URL slug. Use only lowercase letters, numbers, and hyphens. Max 60 chars. Respond with ONLY the slug.'
                         },
-                        {
-                            role: 'user',
-                            content: `Generate SEO for this article:\nTitle: ${title}\nContent: ${content.substring(0, 1500)}`
-                        }
+                        { role: 'user', content: title }
                     ],
-                    temperature: 0.7,
+                    temperature: 0.3,
+                    max_tokens: 100,
                 }),
             });
 
-            if (!response.ok) {
-                throw new Error('OpenAI API error');
-            }
-
+            if (!response.ok) return generateSlug(title);
             const data = await response.json();
-            const seoText = data.choices[0].message.content;
-            return JSON.parse(seoText);
-        } catch (error) {
-            console.error('AI SEO Error:', error);
-            throw error;
+            return data.choices[0].message.content.trim().toLowerCase().replace(/[^a-z0-9-]/g, '-').replace(/-+/g, '-');
+        } catch {
+            return generateSlug(title);
         }
-    };
+    }, [settings.openaiApiKey, settings.openaiModel, generateSlug]);
 
-    // User Profile
-    const updateUserPassword = (currentPassword, newPassword) => {
-        // Simple password update (demo - in real app use proper auth)
-        if (currentPassword === 'admin123' || user?.password === currentPassword) {
-            saveUser({ ...user, password: newPassword });
+    // SEO generation
+    const generateSEOWithAI = useCallback(async (title, content) => {
+        if (!settings.openaiApiKey) return null;
+
+        try {
+            const response = await fetch('https://api.openai.com/v1/chat/completions', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Authorization': `Bearer ${settings.openaiApiKey}`,
+                },
+                body: JSON.stringify({
+                    model: settings.openaiModel || 'gpt-3.5-turbo',
+                    messages: [
+                        {
+                            role: 'system',
+                            content: 'Generate SEO metadata as JSON: {"metaTitle": "60 chars max", "metaDescription": "160 chars max", "keywords": ["5 keywords"]}'
+                        },
+                        { role: 'user', content: `Title: ${title}\n\nContent: ${content.substring(0, 500)}` }
+                    ],
+                    temperature: 0.5,
+                }),
+            });
+
+            if (!response.ok) return null;
+            const data = await response.json();
+            return JSON.parse(data.choices[0].message.content);
+        } catch {
+            return null;
+        }
+    }, [settings.openaiApiKey, settings.openaiModel]);
+
+    // Media library
+    const addMedia = useCallback((media) => {
+        const newMedia = { ...media, id: Date.now(), createdAt: new Date().toISOString() };
+        const updated = [newMedia, ...mediaLibrary];
+        setMediaLibrary(updated);
+        localStorage.setItem('newsMediaLibrary', JSON.stringify(updated));
+        return newMedia;
+    }, [mediaLibrary]);
+
+    const deleteMedia = useCallback((id) => {
+        const updated = mediaLibrary.filter(m => m.id !== id);
+        setMediaLibrary(updated);
+        localStorage.setItem('newsMediaLibrary', JSON.stringify(updated));
+    }, [mediaLibrary]);
+
+    const searchMedia = useCallback((query) => {
+        const lower = query.toLowerCase();
+        return mediaLibrary.filter(m =>
+            m.name?.toLowerCase().includes(lower) ||
+            m.alt?.toLowerCase().includes(lower)
+        );
+    }, [mediaLibrary]);
+
+    // User password update
+    const updateUserPassword = useCallback(async (currentPassword, newPassword) => {
+        if (useApi) {
+            // API handles password update
+            try {
+                await authApi.updateUser(user.id, { password: newPassword });
+                return { success: true };
+            } catch (error) {
+                return { success: false, error: error.message };
+            }
+        }
+        // Fallback
+        const currentUser = users.find(u => u.id === user?.id);
+        if (currentUser && currentUser.password === currentPassword) {
+            await updateUser(user.id, { password: newPassword });
             return { success: true };
         }
-        return { success: false, error: 'বর্তমান পাসওয়ার্ড ভুল' };
-    };
+        return { success: false, error: 'ভুল পাসওয়ার্ড' };
+    }, [useApi, user, users, updateUser]);
+
+    const saveUser = useCallback((userData) => {
+        setUser(userData);
+        localStorage.setItem('newsUser', JSON.stringify(userData));
+    }, []);
+
+    if (loading) {
+        return (
+            <div style={{
+                display: 'flex',
+                justifyContent: 'center',
+                alignItems: 'center',
+                height: '100vh',
+                background: 'var(--color-bg-primary)',
+                color: 'var(--color-text-primary)'
+            }}>
+                <div>লোড হচ্ছে...</div>
+            </div>
+        );
+    }
 
     return (
         <DataContext.Provider value={{
@@ -437,8 +534,13 @@ export function DataProvider({ children }) {
             settings,
             theme,
             user,
+            users,
+            loading,
+            useApi,
             toggleTheme,
             generateSlug,
+            generateSlugWithAI,
+            generateSEOWithAI,
             addArticle,
             updateArticle,
             deleteArticle,
@@ -459,19 +561,13 @@ export function DataProvider({ children }) {
             deleteMedia,
             searchMedia,
             saveSettings,
-            generateSEOWithAI,
-            generateSlugWithAI,
+            generateWebhookApiKey,
             updateUserPassword,
             saveUser,
-            users,
             addUser,
             updateUser,
             deleteUser,
             getUserById,
-            authenticateUser,
-            generateWebhookApiKey,
-            validateWebhookApiKey,
-            addArticleViaWebhook,
         }}>
             {children}
         </DataContext.Provider>

@@ -33,6 +33,8 @@ COPY --from=frontend-builder /app/dist /var/www/html
 COPY docker-nginx-allinone.conf /etc/nginx/http.d/default.conf
 
 # Create supervisor config
+# Force PORT=3001 to avoid conflict with Nginx (which uses 80)
+# Many cloud providers inject PORT=80, so we must override it for the backend process
 RUN echo '[supervisord]' > /etc/supervisord.conf && \
     echo 'nodaemon=true' >> /etc/supervisord.conf && \
     echo 'logfile=/var/log/supervisor/supervisord.log' >> /etc/supervisord.conf && \
@@ -51,7 +53,7 @@ RUN echo '[supervisord]' > /etc/supervisord.conf && \
     echo 'directory=/app/backend' >> /etc/supervisord.conf && \
     echo 'autostart=true' >> /etc/supervisord.conf && \
     echo 'autorestart=true' >> /etc/supervisord.conf && \
-    echo 'environment=NODE_ENV=production' >> /etc/supervisord.conf && \
+    echo 'environment=NODE_ENV="production",PORT="3001"' >> /etc/supervisord.conf && \
     echo 'stdout_logfile=/dev/stdout' >> /etc/supervisord.conf && \
     echo 'stdout_logfile_maxbytes=0' >> /etc/supervisord.conf && \
     echo 'stderr_logfile=/dev/stderr' >> /etc/supervisord.conf && \

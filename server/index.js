@@ -13,7 +13,9 @@ const settingsRoutes = require('./routes/settings');
 const webhookRoutes = require('./routes/webhook');
 
 const app = express();
-const PORT = process.env.PORT || 3001;
+// Use BACKEND_PORT to avoid conflict with platform-injected PORT (usually 80 or 8080)
+// which should be used by Nginx, not the backend in this all-in-one setup.
+const PORT = process.env.BACKEND_PORT || 3001;
 
 // Global error handlers
 process.on('uncaughtException', (err) => {

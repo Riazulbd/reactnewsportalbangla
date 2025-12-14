@@ -7,7 +7,13 @@ const DataContext = createContext();
 const isApiAvailable = async () => {
     try {
         const response = await fetch('/api/health');
-        return response.ok;
+        if (!response.ok) return false;
+        // Check if response is actually JSON (not Vite's HTML fallback)
+        const contentType = response.headers.get('content-type');
+        if (!contentType || !contentType.includes('application/json')) {
+            return false;
+        }
+        return true;
     } catch {
         return false;
     }
@@ -215,19 +221,19 @@ export function DataProvider({ children }) {
                 setCategories(prev => [...prev, newCat]);
                 return newCat;
             } catch (error) {
-                console.error('Add category error:', error);
-                throw error;
+                console.error('Add category API error, falling back to localStorage:', error);
+                // Fall through to localStorage fallback
             }
-        } else {
-            const newCat = {
-                ...category,
-                id: category.slug || category.name.toLowerCase().replace(/\s+/g, '-'),
-            };
-            const updated = [...categories, newCat];
-            setCategories(updated);
-            localStorage.setItem('newsCategories', JSON.stringify(updated));
-            return newCat;
         }
+        // localStorage fallback
+        const newCat = {
+            ...category,
+            id: category.slug || category.name.toLowerCase().replace(/\s+/g, '-'),
+        };
+        const updated = [...categories, newCat];
+        setCategories(updated);
+        localStorage.setItem('newsCategories', JSON.stringify(updated));
+        return newCat;
     }, [useApi, categories]);
 
     const updateCategory = useCallback(async (id, updates) => {
@@ -237,17 +243,17 @@ export function DataProvider({ children }) {
                 setCategories(prev => prev.map(c => c.id === id ? updated : c));
                 return updated;
             } catch (error) {
-                console.error('Update category error:', error);
-                throw error;
+                console.error('Update category API error, falling back to localStorage:', error);
+                // Fall through to localStorage fallback
             }
-        } else {
-            const updated = categories.map(c =>
-                c.id === id ? { ...c, ...updates } : c
-            );
-            setCategories(updated);
-            localStorage.setItem('newsCategories', JSON.stringify(updated));
-            return updated.find(c => c.id === id);
         }
+        // localStorage fallback
+        const updated = categories.map(c =>
+            c.id === id ? { ...c, ...updates } : c
+        );
+        setCategories(updated);
+        localStorage.setItem('newsCategories', JSON.stringify(updated));
+        return updated.find(c => c.id === id);
     }, [useApi, categories]);
 
     const deleteCategory = useCallback(async (id) => {
@@ -255,15 +261,16 @@ export function DataProvider({ children }) {
             try {
                 await categoriesApi.delete(id);
                 setCategories(prev => prev.filter(c => c.id !== id));
+                return;
             } catch (error) {
-                console.error('Delete category error:', error);
-                throw error;
+                console.error('Delete category API error, falling back to localStorage:', error);
+                // Fall through to localStorage fallback
             }
-        } else {
-            const updated = categories.filter(c => c.id !== id);
-            setCategories(updated);
-            localStorage.setItem('newsCategories', JSON.stringify(updated));
         }
+        // localStorage fallback
+        const updated = categories.filter(c => c.id !== id);
+        setCategories(updated);
+        localStorage.setItem('newsCategories', JSON.stringify(updated));
     }, [useApi, categories]);
 
     const getMainCategories = useCallback(() => {

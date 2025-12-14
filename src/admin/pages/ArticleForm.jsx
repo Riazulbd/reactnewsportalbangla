@@ -178,9 +178,22 @@ function ArticleForm() {
         setIsGeneratingSEO(true);
         setSeoError('');
         try {
-            const seoData = await generateSEOWithAI(formData.content, formData.title);
-            setFormData(prev => ({ ...prev, seo: { ...prev.seo, ...seoData } }));
+            const seoData = await generateSEOWithAI(formData.title, formData.content);
+            if (seoData) {
+                setFormData(prev => ({
+                    ...prev,
+                    seo: {
+                        ...prev.seo,
+                        metaTitle: seoData.metaTitle || prev.seo.metaTitle,
+                        metaDescription: seoData.metaDescription || prev.seo.metaDescription,
+                        keywords: Array.isArray(seoData.keywords) ? seoData.keywords.join(', ') : (seoData.keywords || prev.seo.keywords),
+                    }
+                }));
+            } else {
+                setSeoError('SEO জেনারেট করতে সমস্যা হয়েছে। API কী চেক করুন।');
+            }
         } catch (error) {
+            console.error('SEO generation error:', error);
             setSeoError('SEO জেনারেট করতে সমস্যা হয়েছে।');
         } finally {
             setIsGeneratingSEO(false);

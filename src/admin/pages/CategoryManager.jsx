@@ -27,7 +27,7 @@ function CategoryManager() {
         setIsModalOpen(true);
     };
 
-    const handleSubmit = (e) => {
+    const handleSubmit = async (e) => {
         e.preventDefault();
 
         const categoryData = {
@@ -36,14 +36,18 @@ function CategoryManager() {
             parentId: formData.parentId || null,
         };
 
-        if (editingCategory) {
-            updateCategory(editingCategory.id, categoryData);
-        } else {
-            addCategory(categoryData);
-        }
+        try {
+            if (editingCategory) {
+                await updateCategory(editingCategory.id, categoryData);
+            } else {
+                await addCategory(categoryData);
+            }
 
-        setIsModalOpen(false);
-        setFormData({ name: '', color: '#ef4444', parentId: '' });
+            setIsModalOpen(false);
+            setFormData({ name: '', color: '#ef4444', parentId: '' });
+        } catch (error) {
+            console.error('Category save error:', error);
+        }
     };
 
     const handleDelete = (id) => {

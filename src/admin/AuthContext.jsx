@@ -8,36 +8,70 @@ export function AuthProvider({ children }) {
     const [loading, setLoading] = useState(true);
 
     useEffect(() => {
-        // Check session storage on mount
-        const authData = sessionStorage.getItem('adminAuth');
+        // Check localStorage on mount (using localStorage instead of sessionStorage for persistence)
+        const authData = localStorage.getItem('adminAuth');
         if (authData) {
-            const parsed = JSON.parse(authData);
-            setIsAuthenticated(true);
-            setUser(parsed.user);
+            try {
+                const parsed = JSON.parse(authData);
+                if (parsed && parsed.user) {
+                    setIsAuthenticated(true);
+                    setUser(parsed.user);
+                }
+            } catch (e) {
+                localStorage.removeItem('adminAuth');
+            }
         }
         setLoading(false);
     }, []);
 
     const login = (username, password) => {
-        // Demo credentials
+        // First check default credentials (always works)
         if (username === 'admin' && password === 'admin123') {
             const userData = {
+                id: 1,
                 username: 'admin',
                 name: 'অ্যাডমিন',
-                role: 'প্রশাসক'
+                email: 'admin@example.com',
+                role: 'admin'
             };
             setIsAuthenticated(true);
             setUser(userData);
-            sessionStorage.setItem('adminAuth', JSON.stringify({ user: userData }));
+            localStorage.setItem('adminAuth', JSON.stringify({ user: userData }));
             return { success: true };
         }
+
+        // Then check users from localStorage
+        const storedUsers = localStorage.getItem('newsUsers');
+        if (storedUsers) {
+            try {
+                const users = JSON.parse(storedUsers);
+                const foundUser = users.find(u => u.username === username && u.password === password);
+
+                if (foundUser) {
+                    const userData = {
+                        id: foundUser.id,
+                        username: foundUser.username,
+                        name: foundUser.name,
+                        email: foundUser.email,
+                        role: foundUser.role
+                    };
+                    setIsAuthenticated(true);
+                    setUser(userData);
+                    localStorage.setItem('adminAuth', JSON.stringify({ user: userData }));
+                    return { success: true };
+                }
+            } catch (e) {
+                console.error('Error parsing users:', e);
+            }
+        }
+
         return { success: false, error: 'ভুল ইউজারনেম বা পাসওয়ার্ড' };
     };
 
     const logout = () => {
         setIsAuthenticated(false);
         setUser(null);
-        sessionStorage.removeItem('adminAuth');
+        localStorage.removeItem('adminAuth');
     };
 
     return (

@@ -33,17 +33,28 @@ function ArticlePage() {
             // Update page title
             document.title = `${article.title} - বাংলা সংবাদ পোর্টাল`;
 
+            // Ensure image URL is absolute
+            let imageUrl = article.image || '';
+            if (imageUrl && !imageUrl.startsWith('http') && !imageUrl.startsWith('data:')) {
+                imageUrl = window.location.origin + (imageUrl.startsWith('/') ? '' : '/') + imageUrl;
+            }
+
             // Update Open Graph tags
             updateMeta('og:title', article.title);
-            updateMeta('og:description', article.excerpt);
-            updateMeta('og:image', article.image);
+            updateMeta('og:description', article.excerpt || article.content?.substring(0, 200) || '');
+            updateMeta('og:image', imageUrl);
+            updateMeta('og:image:url', imageUrl);
+            updateMeta('og:image:secure_url', imageUrl);
+            updateMeta('og:image:width', '1200');
+            updateMeta('og:image:height', '630');
             updateMeta('og:url', window.location.href);
             updateMeta('og:type', 'article');
 
             // Update Twitter tags
+            updateMeta('twitter:card', 'summary_large_image');
             updateMeta('twitter:title', article.title);
-            updateMeta('twitter:description', article.excerpt);
-            updateMeta('twitter:image', article.image);
+            updateMeta('twitter:description', article.excerpt || article.content?.substring(0, 200) || '');
+            updateMeta('twitter:image', imageUrl);
 
             // Cleanup on unmount
             return () => {

@@ -3,10 +3,16 @@ import { articles as initialArticles, categories as initialCategories } from '..
 
 const DataContext = createContext();
 
+// Default users with roles
+const defaultUsers = [
+    { id: 1, username: 'admin', password: 'admin123', name: 'অ্যাডমিন', email: 'admin@example.com', role: 'admin' },
+];
+
 export function DataProvider({ children }) {
     const [articles, setArticles] = useState([]);
     const [categories, setCategories] = useState([]);
     const [mediaLibrary, setMediaLibrary] = useState([]);
+    const [users, setUsers] = useState([]);
     const [settings, setSettings] = useState({
         heroArticleId: null,
         featuredArticleIds: [],
@@ -26,6 +32,7 @@ export function DataProvider({ children }) {
         const storedMedia = localStorage.getItem('newsMediaLibrary');
         const storedSettings = localStorage.getItem('newsSettings');
         const storedUser = localStorage.getItem('newsUser');
+        const storedUsers = localStorage.getItem('newsUsers');
 
         if (storedArticles) {
             setArticles(JSON.parse(storedArticles));
@@ -57,6 +64,13 @@ export function DataProvider({ children }) {
         if (storedUser) {
             setUser(JSON.parse(storedUser));
         }
+
+        if (storedUsers) {
+            setUsers(JSON.parse(storedUsers));
+        } else {
+            setUsers(defaultUsers);
+            localStorage.setItem('newsUsers', JSON.stringify(defaultUsers));
+        }
     }, []);
 
     // Save functions
@@ -86,6 +100,11 @@ export function DataProvider({ children }) {
         localStorage.setItem('newsUser', JSON.stringify(userData));
     };
 
+    const saveUsers = (newUsers) => {
+        setUsers(newUsers);
+        localStorage.setItem('newsUsers', JSON.stringify(newUsers));
+    };
+
     // Theme toggle
     const toggleTheme = () => {
         const newTheme = theme === 'dark' ? 'light' : 'dark';
@@ -94,7 +113,7 @@ export function DataProvider({ children }) {
         document.documentElement.setAttribute('data-theme', newTheme);
     };
 
-    // Generate slug from title
+    // Basic slug generation (fallback)
     const generateSlug = (title) => {
         return title
             .toLowerCase()
@@ -102,6 +121,78 @@ export function DataProvider({ children }) {
             .replace(/\s+/g, '-')
             .replace(/-+/g, '-')
             .trim();
+    };
+
+    // AI-powered English slug generation
+    const generateSlugWithAI = async (title) => {
+        if (!settings.openaiApiKey) {
+            return generateSlug(title);
+        }
+
+        try {
+            const response = await fetch('https://api.openai.com/v1/chat/completions', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Authorization': `Bearer ${settings.openaiApiKey}`,
+                },
+                body: JSON.stringify({
+                    model: settings.openaiModel || 'gpt-3.5-turbo',
+                    messages: [
+                        {
+                            role: 'system',
+                            content: 'You are a URL slug generator. Convert the given title (which may be in Bengali or any language) to an SEO-friendly English URL slug. Use only lowercase letters, numbers, and hyphens. Max 60 chars. Respond with ONLY the slug, nothing else.'
+                        },
+                        {
+                            role: 'user',
+                            content: title
+                        }
+                    ],
+                    temperature: 0.3,
+                    max_tokens: 100,
+                }),
+            });
+
+            if (!response.ok) {
+                return generateSlug(title);
+            }
+
+            const data = await response.json();
+            const slug = data.choices[0].message.content.trim().toLowerCase().replace(/[^a-z0-9-]/g, '-').replace(/-+/g, '-');
+            return slug;
+        } catch (error) {
+            console.error('AI Slug Error:', error);
+            return generateSlug(title);
+        }
+    };
+
+    // User Management
+    const addUser = (userData) => {
+        const newUser = {
+            ...userData,
+            id: Math.max(...users.map(u => u.id), 0) + 1,
+            createdAt: new Date().toISOString(),
+        };
+        saveUsers([...users, newUser]);
+        return newUser;
+    };
+
+    const updateUser = (id, updates) => {
+        const updated = users.map(u =>
+            u.id === id ? { ...u, ...updates } : u
+        );
+        saveUsers(updated);
+    };
+
+    const deleteUser = (id) => {
+        if (id === 1) return; // Can't delete main admin
+        saveUsers(users.filter(u => u.id !== id));
+    };
+
+    const getUserById = (id) => users.find(u => u.id === id);
+
+    const authenticateUser = (username, password) => {
+        return users.find(u => u.username === username && u.password === password);
     };
 
     // Article CRUD
@@ -340,8 +431,15 @@ export function DataProvider({ children }) {
             searchMedia,
             saveSettings,
             generateSEOWithAI,
+            generateSlugWithAI,
             updateUserPassword,
             saveUser,
+            users,
+            addUser,
+            updateUser,
+            deleteUser,
+            getUserById,
+            authenticateUser,
         }}>
             {children}
         </DataContext.Provider>

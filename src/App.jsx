@@ -19,6 +19,7 @@ import CategoryManager from './admin/pages/CategoryManager';
 import MediaLibrary from './admin/pages/MediaLibrary';
 import AdminSettings from './admin/pages/AdminSettings';
 import Profile from './admin/pages/Profile';
+import UserManagement from './admin/pages/UserManagement';
 
 import './index.css';
 
@@ -86,6 +87,7 @@ function App() {
               <Route path="media" element={<MediaLibrary />} />
               <Route path="settings" element={<AdminSettings />} />
               <Route path="profile" element={<Profile />} />
+              <Route path="users" element={<UserManagement />} />
             </Route>
           </Routes>
         </Router>

@@ -98,6 +98,15 @@ function AdminLayout() {
                                     <span>প্রোফাইল</span>
                                 </NavLink>
                             </li>
+                            <li>
+                                <NavLink
+                                    to="/admin/users"
+                                    className={({ isActive }) => `admin-nav-link ${isActive ? 'active' : ''}`}
+                                >
+                                    <span>👥</span>
+                                    <span>ব্যবহারকারী</span>
+                                </NavLink>
+                            </li>
                         </ul>
                     </div>
 

@@ -16,98 +16,42 @@ const categories = [
     { id: 'world', name: 'আন্তর্জাতিক', color: '#06b6d4' },
 ];
 
-const articles = [
-    {
-        title: "জলবায়ু সম্মেলনে বিশ্ব নেতাদের ঐতিহাসিক মিলন",
-        excerpt: "১৯০টিরও বেশি দেশের নেতারা জলবায়ু পরিবর্তনের চ্যালেঞ্জ মোকাবেলা এবং নতুন পরিবেশ নীতি প্রণয়নে একত্রিত হয়েছেন।",
-        content: `১৯০টিরও বেশি দেশের বিশ্ব নেতারা ইতিহাসের সবচেয়ে গুরুত্বপূর্ণ জলবায়ু সম্মেলনে একত্রিত হয়েছেন। জেনেভায় অনুষ্ঠিত এই তিন দিনের অনুষ্ঠানের লক্ষ্য কার্বন নিঃসরণ এবং নবায়নযোগ্য শক্তি গ্রহণের বিষয়ে বাধ্যতামূলক চুক্তি স্থাপন করা।
+const articles = [];
 
-বৈশ্বিক তাপমাত্রা ক্রমাগত বৃদ্ধি এবং চরম আবহাওয়ার ঘটনা আরও ঘন ঘন হওয়ার সাথে সাথে এই সম্মেলন একটি গুরুত্বপূর্ণ সময়ে অনুষ্ঠিত হচ্ছে।`,
-        category: 'politics',
-        author: 'সারাহ মিচেল',
-        authorAvatar: 'https://i.pravatar.cc/150?img=1',
-        image: 'https://images.unsplash.com/photo-1529107386315-e1a2ed48a620?w=800',
-        featured: true,
-        slug: 'climate-summit-world-leaders'
-    },
-    {
-        title: "চ্যাম্পিয়নশিপ ফাইনালে দুর্বলদের অবিশ্বাস্য জয়",
-        excerpt: "যে খেলাটি প্রজন্মের পর প্রজন্ম মনে রাখা হবে, সেখানে দুর্বল দলটি নাটকীয় অতিরিক্ত সময়ে জয় ছিনিয়ে নিয়েছে।",
-        content: `ক্রীড়া বিশ্লেষকরা যাকে এখন পর্যন্ত সেরা চ্যাম্পিয়নশিপ খেলা বলছেন, সেখানে আন্ডারডগ দল ডিফেন্ডিং চ্যাম্পিয়নদের বিরুদ্ধে অতিরিক্ত সময়ে অবিশ্বাস্য জয় পেয়েছে।`,
-        category: 'sports',
-        author: 'মাইক জনসন',
-        authorAvatar: 'https://i.pravatar.cc/150?img=3',
-        image: 'https://images.unsplash.com/photo-1461896836934-478978c600b7?w=800',
-        featured: false,
-        slug: 'championship-underdog-victory'
-    },
-    {
-        title: "বিপ্লবী এআই সিস্টেমে বৈজ্ঞানিক অগ্রগতি",
-        excerpt: "একটি নতুন কৃত্রিম বুদ্ধিমত্তা সিস্টেম কয়েক দশকের পুরনো গাণিতিক সমস্যার সমাধান করেছে, পদার্থবিজ্ঞান এবং প্রকৌশলে নতুন সম্ভাবনার দ্বার খুলে দিয়েছে।",
-        content: `বিজ্ঞানীরা কৃত্রিম বুদ্ধিমত্তায় একটি যুগান্তকারী অর্জন ঘোষণা করেছেন, যেখানে একটি নতুন এআই সিস্টেম সফলভাবে একটি গাণিতিক সমস্যার সমাধান করেছে যা ৫০ বছরেরও বেশি সময় ধরে গবেষকদের বিভ্রান্ত করে রেখেছিল।`,
-        category: 'technology',
-        author: 'ড. এমিলি চেন',
-        authorAvatar: 'https://i.pravatar.cc/150?img=5',
-        image: 'https://images.unsplash.com/photo-1677442136019-21780ecad995?w=800',
-        featured: true,
-        slug: 'ai-breakthrough-mathematics'
-    },
-    {
-        title: "ব্লকবাস্টার চলচ্চিত্র সর্বকালের বক্স অফিস রেকর্ড ভেঙেছে",
-        excerpt: "প্রিয় ফ্র্যাঞ্চাইজির সর্বশেষ কিস্তি বক্স অফিস রেকর্ড ভেঙে সিনেমা ইতিহাসের সর্বোচ্চ আয়কারী চলচ্চিত্রে পরিণত হয়েছে।",
-        content: `হলিউড উদযাপন করছে কারণ সর্বশেষ ব্লকবাস্টার আনুষ্ঠানিকভাবে সর্বকালের সর্বোচ্চ আয়কারী চলচ্চিত্রে পরিণত হয়েছে, প্রায় এক দশক ধরে দাঁড়িয়ে থাকা রেকর্ড ছাড়িয়ে গেছে।`,
-        category: 'entertainment',
-        author: 'জেসিকা ওয়াং',
-        authorAvatar: 'https://i.pravatar.cc/150?img=9',
-        image: 'https://images.unsplash.com/photo-1536440136628-849c177e76a1?w=800',
-        featured: false,
-        slug: 'blockbuster-box-office-record'
-    },
-    {
-        title: "টেক জায়ান্টের বিপ্লবী টেকসই শক্তি উদ্যোগ ঘোষণা",
-        excerpt: "বড় প্রযুক্তি কোম্পানি নবায়নযোগ্য শক্তিতে ৫০ বিলিয়ন ডলার বিনিয়োগের প্রতিশ্রুতি দিয়েছে।",
-        content: `টেক শিল্পের জন্য রূপান্তরকারী হিসাবে প্রশংসিত একটি পদক্ষেপে, বিশ্বের বৃহত্তম প্রযুক্তি কোম্পানিগুলোর একটি টেকসই শক্তি অবকাঠামোতে ৫০ বিলিয়ন ডলার বিনিয়োগের ঘোষণা করেছে।`,
-        category: 'business',
-        author: 'রবার্ট টেলর',
-        authorAvatar: 'https://i.pravatar.cc/150?img=11',
-        image: 'https://images.unsplash.com/photo-1473341304170-971dccb5ac1e?w=800',
-        featured: false,
-        slug: 'tech-giant-sustainable-energy'
-    },
-    {
-        title: "দশকের দ্বন্দ্বের পর ঐতিহাসিক শান্তি চুক্তি স্বাক্ষর",
-        excerpt: "দুই দেশ আনুষ্ঠানিকভাবে দশকের শত্রুতার অবসান ঘটিয়ে ব্যাপক শান্তি চুক্তি স্বাক্ষর করেছে।",
-        content: `অসংখ্য বিশ্ব নেতাদের উপস্থিতিতে একটি অনুষ্ঠানে, দুই দীর্ঘদিনের প্রতিদ্বন্দ্বী একটি ঐতিহাসিক শান্তি চুক্তি স্বাক্ষর করেছে।`,
-        category: 'world',
-        author: 'আমান্ডা রবার্টস',
-        authorAvatar: 'https://i.pravatar.cc/150?img=25',
-        image: 'https://images.unsplash.com/photo-1529107386315-e1a2ed48a620?w=800',
-        featured: false,
-        slug: 'historic-peace-agreement'
-    },
-    {
-        title: "উদীয়মান তারকা খেলোয়াড় বিশ্ব রেকর্ড ভাঙলেন",
-        excerpt: "১৯ বছর বয়সী একজন সেনসেশন রেকর্ড বই পুনর্লিখন করেছেন।",
-        content: `ক্রীড়া বিশ্ব তোলপাড় হচ্ছে ১৯ বছর বয়সী একজন খেলোয়াড় ইতিহাসের সবচেয়ে উল্লেখযোগ্য পারফরম্যান্সগুলোর একটি প্রদান করার পরে।`,
-        category: 'sports',
-        author: 'মাইক জনসন',
-        authorAvatar: 'https://i.pravatar.cc/150?img=3',
-        image: 'https://images.unsplash.com/photo-1552674605-db6ffd4facb5?w=800',
-        featured: false,
-        slug: 'rising-star-world-record'
-    },
-    {
-        title: "কোয়ান্টাম কম্পিউটিং মাইলফলক: প্রথম ত্রুটিমুক্ত প্রসেসর",
-        excerpt: "বিজ্ঞানীরা প্রথম ত্রুটিমুক্ত কোয়ান্টাম প্রসেসর তৈরি করেছেন।",
-        content: `গবেষকদের একটি দল এমন কিছু অর্জন করেছে যা অনেকের মতে বছরের পর বছর দূরে ছিল: ঘরের তাপমাত্রায় ত্রুটিমুক্ত অপারেশনে সক্ষম প্রথম কোয়ান্টাম প্রসেসর তৈরি।`,
-        category: 'technology',
-        author: 'ড. এমিলি চেন',
-        authorAvatar: 'https://i.pravatar.cc/150?img=5',
-        image: 'https://images.unsplash.com/photo-1635070041078-e363dbe005cb?w=800',
-        featured: false,
-        slug: 'quantum-computing-milestone'
+// Helper to generate dummy Bengali content
+const getDummyContent = (category, index) => {
+    const titles = [
+        "নতুন দিগন্তের সূচনা: বিস্ময়কর ঘটনা",
+        "বিশেষ প্রতিবেদন: পরিবর্তনের হাওয়া",
+        "ভবিষ্যতের পরিকল্পনা নিয়ে আলোচনা",
+        "অসাধারণ অর্জনের গল্প"
+    ];
+
+    return {
+        title: `${categories.find(c => c.id === category).name}: ${titles[index]} (${index + 1})`,
+        excerpt: "এটি একটি ডামি আর্টিকেল যা নিউজ পোর্টালের লেআউট টেস্ট করার জন্য তৈরি করা হয়েছে। এখানে কিছু সাধারণ টেক্সট থাকবে।",
+        content: `এটি একটি বিস্তারিত ডামি আর্টিকেল। নিউজ পোর্টালের বিভিন্ন সেকশন কীভাবে কাজ করে তা পরীক্ষা করার জন্য এই কন্টেন্ট ব্যবহার করা হচ্ছে। 
+        
+        প্যারাগ্রাফ ১: এখানে ঘটনার বিস্তারিত বর্ণনা থাকবে। কে, কখন, কোথায় এবং কীভাবে ঘটনাটি ঘটেছে তার বিবরণ।
+        
+        প্যারাগ্রাফ ২: সংশ্লিষ্টদের মতামত এবং প্রতিক্রিয়া। এই ঘটনার প্রভাব এবং ভবিষ্যতের ফলাফল নিয়ে আলোচনা।
+        
+        প্যারাগ্রাফ ৩: একটি উপসংহার এবং পরবর্তী পদক্ষেপ। পাঠকদের জন্য কিছু চিন্তার খোরাক এবং সাধারণ পর্যবেক্ষণ।`,
+        category: category,
+        author: 'ফাহিম আহমেদ',
+        authorAvatar: `https://i.pravatar.cc/150?u=${category}${index}`,
+        image: `https://placehold.co/800x400/e2e8f0/1e293b?text=${category.toUpperCase()}+${index + 1}`,
+        featured: index === 0, // First article of each category is featured
+        slug: `${category}-dummy-article-${index + 1}-${Date.now()}`
+    };
+};
+
+// Generate 4 articles for each category
+categories.forEach(cat => {
+    for (let i = 0; i < 4; i++) {
+        articles.push(getDummyContent(cat.id, i));
     }
-];
+});
 
 const defaultAdmin = {
     username: 'admin',

@@ -41,13 +41,21 @@ RUN echo '[supervisord]' > /etc/supervisord.conf && \
     echo 'command=nginx -g "daemon off;"' >> /etc/supervisord.conf && \
     echo 'autostart=true' >> /etc/supervisord.conf && \
     echo 'autorestart=true' >> /etc/supervisord.conf && \
+    echo 'stdout_logfile=/dev/stdout' >> /etc/supervisord.conf && \
+    echo 'stdout_logfile_maxbytes=0' >> /etc/supervisord.conf && \
+    echo 'stderr_logfile=/dev/stderr' >> /etc/supervisord.conf && \
+    echo 'stderr_logfile_maxbytes=0' >> /etc/supervisord.conf && \
     echo '' >> /etc/supervisord.conf && \
     echo '[program:backend]' >> /etc/supervisord.conf && \
     echo 'command=node /app/backend/index.js' >> /etc/supervisord.conf && \
     echo 'directory=/app/backend' >> /etc/supervisord.conf && \
     echo 'autostart=true' >> /etc/supervisord.conf && \
     echo 'autorestart=true' >> /etc/supervisord.conf && \
-    echo 'environment=NODE_ENV=production' >> /etc/supervisord.conf
+    echo 'environment=NODE_ENV=production' >> /etc/supervisord.conf && \
+    echo 'stdout_logfile=/dev/stdout' >> /etc/supervisord.conf && \
+    echo 'stdout_logfile_maxbytes=0' >> /etc/supervisord.conf && \
+    echo 'stderr_logfile=/dev/stderr' >> /etc/supervisord.conf && \
+    echo 'stderr_logfile_maxbytes=0' >> /etc/supervisord.conf
 
 WORKDIR /app/backend
 

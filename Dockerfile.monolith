@@ -1,0 +1,90 @@
+# Monolith Dockerfile: Frontend + Backend + Nginx + PostgreSQL
+# All-in-one minimal deployment
+
+FROM node:20-alpine AS frontend-builder
+WORKDIR /app
+COPY package*.json ./
+RUN npm install
+COPY . .
+RUN npm run build
+
+FROM node:20-alpine AS backend-builder
+WORKDIR /app
+COPY server/package*.json ./
+RUN npm install --production
+COPY server/ .
+
+# Final image
+FROM node:20-alpine
+
+# Install nginx, supervisor, and postgresql
+RUN apk add --no-cache nginx supervisor postgresql postgresql-contrib
+
+# Create directories
+RUN mkdir -p /app/backend /var/www/html /var/log/supervisor /run/nginx /run/postgresql /var/lib/postgresql/data
+
+# Fix permissions for postgres
+RUN chown -R postgres:postgres /var/lib/postgresql /run/postgresql
+
+# Copy backend
+COPY --from=backend-builder /app /app/backend
+
+# Copy frontend build
+COPY --from=frontend-builder /app/dist /var/www/html
+
+# Copy nginx config
+COPY docker-nginx-allinone.conf /etc/nginx/http.d/default.conf
+
+# Copy entrypoint script
+COPY entrypoint.sh /entrypoint.sh
+RUN sed -i 's/\r$//' /entrypoint.sh
+RUN chmod +x /entrypoint.sh
+
+# Create supervisor config
+RUN echo '[supervisord]' > /etc/supervisord.conf && \
+    echo 'nodaemon=true' >> /etc/supervisord.conf && \
+    echo 'user=root' >> /etc/supervisord.conf && \
+    echo 'logfile=/var/log/supervisor/supervisord.log' >> /etc/supervisord.conf && \
+    echo '' >> /etc/supervisord.conf && \
+    echo '[program:postgresql]' >> /etc/supervisord.conf && \
+    echo 'command=/usr/bin/postgres -D /var/lib/postgresql/data' >> /etc/supervisord.conf && \
+    echo 'user=postgres' >> /etc/supervisord.conf && \
+    echo 'autostart=true' >> /etc/supervisord.conf && \
+    echo 'autorestart=true' >> /etc/supervisord.conf && \
+    echo 'stdout_logfile=/dev/stdout' >> /etc/supervisord.conf && \
+    echo 'stdout_logfile_maxbytes=0' >> /etc/supervisord.conf && \
+    echo 'stderr_logfile=/dev/stderr' >> /etc/supervisord.conf && \
+    echo 'stderr_logfile_maxbytes=0' >> /etc/supervisord.conf && \
+    echo '' >> /etc/supervisord.conf && \
+    echo '[program:nginx]' >> /etc/supervisord.conf && \
+    echo 'command=nginx -g "daemon off;"' >> /etc/supervisord.conf && \
+    echo 'autostart=true' >> /etc/supervisord.conf && \
+    echo 'autorestart=true' >> /etc/supervisord.conf && \
+    echo 'stdout_logfile=/dev/stdout' >> /etc/supervisord.conf && \
+    echo 'stdout_logfile_maxbytes=0' >> /etc/supervisord.conf && \
+    echo 'stderr_logfile=/dev/stderr' >> /etc/supervisord.conf && \
+    echo 'stderr_logfile_maxbytes=0' >> /etc/supervisord.conf && \
+    echo '' >> /etc/supervisord.conf && \
+    echo '[program:backend]' >> /etc/supervisord.conf && \
+    echo 'command=node /app/backend/index.js' >> /etc/supervisord.conf && \
+    echo 'directory=/app/backend' >> /etc/supervisord.conf && \
+    echo 'autostart=true' >> /etc/supervisord.conf && \
+    echo 'autorestart=true' >> /etc/supervisord.conf && \
+    # Force PORT 3001 and default DB connection to localhost
+    echo 'environment=NODE_ENV="production",PORT="3001",BACKEND_PORT="3001",DATABASE_URL="postgres://admin:secret123@localhost:5432/newsportal"' >> /etc/supervisord.conf && \
+    echo 'stdout_logfile=/dev/stdout' >> /etc/supervisord.conf && \
+    echo 'stdout_logfile_maxbytes=0' >> /etc/supervisord.conf && \
+    echo 'stderr_logfile=/dev/stderr' >> /etc/supervisord.conf && \
+    echo 'stderr_logfile_maxbytes=0' >> /etc/supervisord.conf
+
+WORKDIR /app/backend
+
+# Expose port 80
+EXPOSE 80
+
+# Health check
+HEALTHCHECK --interval=30s --timeout=10s --start-period=30s --retries=3 \
+    CMD wget -q --spider http://localhost/api/health || exit 1
+
+# Start via entrypoint
+ENTRYPOINT ["/entrypoint.sh"]

@@ -14,6 +14,44 @@ function ArticlePage() {
         window.scrollTo({ top: 0, behavior: 'smooth' });
     }, [id]);
 
+    // Dynamic Open Graph meta tags for social sharing
+    useEffect(() => {
+        if (article) {
+            const updateMeta = (property, content) => {
+                let meta = document.querySelector(`meta[property="${property}"]`) ||
+                    document.querySelector(`meta[name="${property}"]`);
+                if (meta) {
+                    meta.setAttribute('content', content);
+                } else {
+                    meta = document.createElement('meta');
+                    meta.setAttribute('property', property);
+                    meta.setAttribute('content', content);
+                    document.head.appendChild(meta);
+                }
+            };
+
+            // Update page title
+            document.title = `${article.title} - বাংলা সংবাদ পোর্টাল`;
+
+            // Update Open Graph tags
+            updateMeta('og:title', article.title);
+            updateMeta('og:description', article.excerpt);
+            updateMeta('og:image', article.image);
+            updateMeta('og:url', window.location.href);
+            updateMeta('og:type', 'article');
+
+            // Update Twitter tags
+            updateMeta('twitter:title', article.title);
+            updateMeta('twitter:description', article.excerpt);
+            updateMeta('twitter:image', article.image);
+
+            // Cleanup on unmount
+            return () => {
+                document.title = 'বাংলা সংবাদ পোর্টাল - সর্বশেষ খবর';
+            };
+        }
+    }, [article]);
+
     if (!article) {
         return (
             <div className="container article-page">

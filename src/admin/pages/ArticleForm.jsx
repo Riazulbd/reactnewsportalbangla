@@ -1,7 +1,59 @@
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, useMemo } from 'react';
 import { useParams, useNavigate, Link } from 'react-router-dom';
+import ReactQuill from 'react-quill';
+import 'react-quill/dist/quill.snow.css';
 import { useData } from '../DataContext';
 import '../admin.css';
+
+// SEO Score Gauge Component
+function SEOGauge({ score }) {
+    const getColor = () => {
+        if (score >= 80) return '#22c55e';
+        if (score >= 60) return '#f59e0b';
+        if (score >= 40) return '#f97316';
+        return '#ef4444';
+    };
+
+    const getLabel = () => {
+        if (score >= 80) return 'চমৎকার';
+        if (score >= 60) return 'ভালো';
+        if (score >= 40) return 'মধ্যম';
+        return 'দুর্বল';
+    };
+
+    const circumference = 2 * Math.PI * 45;
+    const offset = circumference - (score / 100) * circumference;
+
+    return (
+        <div style={{ textAlign: 'center' }}>
+            <svg width="120" height="120" viewBox="0 0 120 120">
+                <circle
+                    cx="60" cy="60" r="45"
+                    fill="none"
+                    stroke="rgba(255,255,255,0.1)"
+                    strokeWidth="10"
+                />
+                <circle
+                    cx="60" cy="60" r="45"
+                    fill="none"
+                    stroke={getColor()}
+                    strokeWidth="10"
+                    strokeDasharray={circumference}
+                    strokeDashoffset={offset}
+                    strokeLinecap="round"
+                    transform="rotate(-90 60 60)"
+                    style={{ transition: 'stroke-dashoffset 0.5s ease' }}
+                />
+                <text x="60" y="55" textAnchor="middle" fill={getColor()} fontSize="24" fontWeight="bold">
+                    {score}
+                </text>
+                <text x="60" y="75" textAnchor="middle" fill="var(--color-text-secondary)" fontSize="12">
+                    {getLabel()}
+                </text>
+            </svg>
+        </div>
+    );
+}
 
 function ArticleForm() {
     const { id } = useParams();
@@ -10,13 +62,14 @@ function ArticleForm() {
     const {
         articles, categories, mediaLibrary, settings,
         addArticle, updateArticle, searchMedia, addMedia,
-        generateSlug, generateSEOWithAI
+        generateSlug, generateSlugWithAI, generateSEOWithAI
     } = useData();
     const isEditing = Boolean(id);
     const [showMediaModal, setShowMediaModal] = useState(false);
     const [mediaSearch, setMediaSearch] = useState('');
     const [activeTab, setActiveTab] = useState('content');
     const [isGeneratingSEO, setIsGeneratingSEO] = useState(false);
+    const [isGeneratingSlug, setIsGeneratingSlug] = useState(false);
     const [seoError, setSeoError] = useState('');
     const [uploadingImage, setUploadingImage] = useState(false);
 
@@ -42,6 +95,76 @@ function ArticleForm() {
     });
 
     const [tagInput, setTagInput] = useState('');
+
+    // Quill editor modules
+    const quillModules = useMemo(() => ({
+        toolbar: [
+            [{ 'header': [1, 2, 3, false] }],
+            ['bold', 'italic', 'underline', 'strike'],
+            [{ 'color': [] }, { 'background': [] }],
+            [{ 'list': 'ordered' }, { 'list': 'bullet' }],
+            [{ 'align': [] }],
+            ['blockquote', 'code-block'],
+            ['link', 'image', 'video'],
+            ['clean']
+        ],
+        clipboard: {
+            matchVisual: false,
+        }
+    }), []);
+
+    const quillFormats = [
+        'header', 'bold', 'italic', 'underline', 'strike',
+        'color', 'background', 'list', 'bullet', 'align',
+        'blockquote', 'code-block', 'link', 'image', 'video'
+    ];
+
+    // Calculate SEO Score
+    const seoScore = useMemo(() => {
+        let score = 0;
+        const seo = formData.seo;
+
+        // Title checks (20 points)
+        if (formData.title) {
+            score += 5;
+            if (formData.title.length >= 30 && formData.title.length <= 70) score += 10;
+            if (formData.title.length > 10) score += 5;
+        }
+
+        // Meta Title (15 points)
+        if (seo.metaTitle) {
+            score += 5;
+            if (seo.metaTitle.length >= 30 && seo.metaTitle.length <= 60) score += 10;
+        }
+
+        // Meta Description (20 points)
+        if (seo.metaDescription) {
+            score += 5;
+            if (seo.metaDescription.length >= 120 && seo.metaDescription.length <= 160) score += 15;
+            else if (seo.metaDescription.length >= 80) score += 10;
+        }
+
+        // Keywords (15 points)
+        if (seo.keywords) {
+            score += 10;
+            const keywordCount = seo.keywords.split(',').filter(k => k.trim()).length;
+            if (keywordCount >= 3 && keywordCount <= 8) score += 5;
+        }
+
+        // Google News Keywords (10 points)
+        if (seo.googleNewsKeywords) score += 10;
+
+        // Slug (10 points)
+        if (formData.slug) {
+            score += 5;
+            if (/^[a-z0-9-]+$/.test(formData.slug)) score += 5;
+        }
+
+        // Featured Image (10 points)
+        if (formData.image) score += 10;
+
+        return Math.min(score, 100);
+    }, [formData]);
 
     useEffect(() => {
         if (isEditing) {
@@ -71,15 +194,25 @@ function ArticleForm() {
         }
     }, [id, isEditing, articles]);
 
-    // Auto-generate slug from title
-    useEffect(() => {
-        if (!isEditing && formData.title && !formData.slug) {
-            setFormData(prev => ({
-                ...prev,
-                slug: generateSlug(formData.title),
-            }));
+    // Generate AI slug when title changes (for new articles)
+    const handleGenerateSlug = async () => {
+        if (!formData.title) return;
+
+        setIsGeneratingSlug(true);
+        try {
+            if (settings.openaiApiKey && generateSlugWithAI) {
+                const slug = await generateSlugWithAI(formData.title);
+                setFormData(prev => ({ ...prev, slug }));
+            } else {
+                setFormData(prev => ({ ...prev, slug: generateSlug(formData.title) }));
+            }
+        } catch (error) {
+            console.error('Slug generation error:', error);
+            setFormData(prev => ({ ...prev, slug: generateSlug(formData.title) }));
+        } finally {
+            setIsGeneratingSlug(false);
         }
-    }, [formData.title, isEditing, generateSlug]);
+    };
 
     const handleChange = (e) => {
         const { name, value, type, checked } = e.target;
@@ -87,6 +220,10 @@ function ArticleForm() {
             ...prev,
             [name]: type === 'checkbox' ? checked : value,
         }));
+    };
+
+    const handleContentChange = (content) => {
+        setFormData(prev => ({ ...prev, content }));
     };
 
     const handleSeoChange = (e) => {
@@ -120,27 +257,22 @@ function ArticleForm() {
         setShowMediaModal(false);
     };
 
-    // Handle real file upload
     const handleFileUpload = async (e) => {
         const file = e.target.files[0];
         if (!file) return;
 
         setUploadingImage(true);
-
         try {
-            // Convert to base64 for local storage (demo purpose)
             const reader = new FileReader();
             reader.onloadend = () => {
                 const base64 = reader.result;
-                // Add to media library
-                const media = addMedia({
+                addMedia({
                     url: base64,
                     name: file.name,
                     alt: file.name.split('.')[0],
                     type: file.type,
                     size: file.size,
                 });
-                // Set as article image
                 setFormData(prev => ({ ...prev, image: base64 }));
                 setUploadingImage(false);
             };
@@ -151,14 +283,16 @@ function ArticleForm() {
         }
     };
 
-    // Generate SEO with AI
     const handleGenerateSEO = async () => {
         if (!settings.openaiApiKey) {
             setSeoError('সেটিংসে OpenAI API কী যোগ করুন');
             return;
         }
 
-        if (!formData.content || !formData.title) {
+        // Strip HTML from content for SEO analysis
+        const plainContent = formData.content.replace(/<[^>]*>/g, '');
+
+        if (!plainContent || !formData.title) {
             setSeoError('SEO জেনারেট করতে শিরোনাম ও বিষয়বস্তু প্রয়োজন');
             return;
         }
@@ -167,7 +301,7 @@ function ArticleForm() {
         setSeoError('');
 
         try {
-            const seoData = await generateSEOWithAI(formData.content, formData.title);
+            const seoData = await generateSEOWithAI(plainContent, formData.title);
             setFormData(prev => ({
                 ...prev,
                 seo: { ...prev.seo, ...seoData },
@@ -182,10 +316,17 @@ function ArticleForm() {
     const handleSubmit = (e) => {
         e.preventDefault();
 
+        // Strip HTML for excerpt if it contains HTML
+        const plainContent = formData.content.replace(/<[^>]*>/g, '');
+        const articleData = {
+            ...formData,
+            excerpt: formData.excerpt || plainContent.substring(0, 200) + '...',
+        };
+
         if (isEditing) {
-            updateArticle(parseInt(id), formData);
+            updateArticle(parseInt(id), articleData);
         } else {
-            addArticle(formData);
+            addArticle(articleData);
         }
 
         navigate('/admin/articles');
@@ -243,46 +384,68 @@ function ArticleForm() {
                                 />
                             </div>
 
+                            {/* Slug with AI Generate */}
                             <div className="admin-form-group">
-                                <label className="admin-form-label">স্লাগ (URL)</label>
-                                <input
-                                    type="text"
-                                    name="slug"
-                                    className="admin-form-input"
-                                    placeholder="auto-generated-from-title"
-                                    value={formData.slug}
-                                    onChange={handleChange}
-                                    style={{ fontFamily: 'monospace' }}
-                                />
+                                <label className="admin-form-label">স্লাগ (URL) - SEO Friendly</label>
+                                <div style={{ display: 'flex', gap: 'var(--space-sm)' }}>
+                                    <input
+                                        type="text"
+                                        name="slug"
+                                        className="admin-form-input"
+                                        placeholder="seo-friendly-english-slug"
+                                        value={formData.slug}
+                                        onChange={handleChange}
+                                        style={{ flex: 1, fontFamily: 'monospace' }}
+                                    />
+                                    <button
+                                        type="button"
+                                        className="admin-btn admin-btn-primary"
+                                        onClick={handleGenerateSlug}
+                                        disabled={isGeneratingSlug || !formData.title}
+                                    >
+                                        {isGeneratingSlug ? '⏳' : '🤖'} AI স্লাগ
+                                    </button>
+                                </div>
                                 <small style={{ color: 'var(--color-text-muted)' }}>
-                                    স্বয়ংক্রিয়ভাবে শিরোনাম থেকে তৈরি হয়
+                                    {settings.openaiApiKey
+                                        ? '✓ AI বাংলা শিরোনাম থেকে ইংরেজি SEO স্লাগ তৈরি করবে'
+                                        : '⚠️ AI স্লাগের জন্য সেটিংসে OpenAI কী যোগ করুন'}
                                 </small>
                             </div>
 
                             <div className="admin-form-group">
-                                <label className="admin-form-label">সংক্ষেপ *</label>
+                                <label className="admin-form-label">সংক্ষেপ</label>
                                 <textarea
                                     name="excerpt"
                                     className="admin-form-textarea"
-                                    placeholder="প্রবন্ধের সংক্ষিপ্ত বিবরণ"
+                                    placeholder="প্রবন্ধের সংক্ষিপ্ত বিবরণ (খালি রাখলে স্বয়ংক্রিয়)"
                                     value={formData.excerpt}
                                     onChange={handleChange}
                                     style={{ minHeight: '80px' }}
-                                    required
                                 />
                             </div>
 
+                            {/* Rich Text Editor */}
                             <div className="admin-form-group">
                                 <label className="admin-form-label">বিস্তারিত *</label>
-                                <textarea
-                                    name="content"
-                                    className="admin-form-textarea"
-                                    placeholder="প্রবন্ধের পূর্ণ বিষয়বস্তু লিখুন..."
-                                    value={formData.content}
-                                    onChange={handleChange}
-                                    style={{ minHeight: '250px' }}
-                                    required
-                                />
+                                <div style={{
+                                    background: 'var(--color-bg-primary)',
+                                    borderRadius: 'var(--radius-md)',
+                                    overflow: 'hidden',
+                                }}>
+                                    <ReactQuill
+                                        theme="snow"
+                                        value={formData.content}
+                                        onChange={handleContentChange}
+                                        modules={quillModules}
+                                        formats={quillFormats}
+                                        placeholder="প্রবন্ধের পূর্ণ বিষয়বস্তু লিখুন... (বোল্ড, ইটালিক, ছবি, ভিডিও যোগ করতে পারবেন)"
+                                        style={{ minHeight: '300px' }}
+                                    />
+                                </div>
+                                <small style={{ color: 'var(--color-text-muted)', marginTop: 'var(--space-sm)', display: 'block' }}>
+                                    💡 টিপ: অন্য ওয়েবসাইট থেকে কপি-পেস্ট করলে ছবি ও ফরম্যাটিং অটো আসবে
+                                </small>
                             </div>
 
                             <div className="admin-form-row">
@@ -318,7 +481,7 @@ function ArticleForm() {
                                 </div>
                             </div>
 
-                            {/* Featured Image with Upload */}
+                            {/* Featured Image */}
                             <div className="admin-form-group">
                                 <label className="admin-form-label">ফিচার ছবি *</label>
                                 <div style={{ display: 'flex', gap: 'var(--space-sm)', flexWrap: 'wrap' }}>
@@ -432,32 +595,6 @@ function ArticleForm() {
                                 )}
                             </div>
 
-                            <div className="admin-form-row">
-                                <div className="admin-form-group">
-                                    <label className="admin-form-label">পড়ার সময়</label>
-                                    <input
-                                        type="text"
-                                        name="readTime"
-                                        className="admin-form-input"
-                                        placeholder="৫ মিনিট"
-                                        value={formData.readTime}
-                                        onChange={handleChange}
-                                    />
-                                </div>
-
-                                <div className="admin-form-group">
-                                    <label className="admin-form-label">লেখকের ছবি URL</label>
-                                    <input
-                                        type="url"
-                                        name="authorAvatar"
-                                        className="admin-form-input"
-                                        placeholder="https://example.com/avatar.jpg"
-                                        value={formData.authorAvatar}
-                                        onChange={handleChange}
-                                    />
-                                </div>
-                            </div>
-
                             <div className="admin-form-group">
                                 <label className="admin-form-checkbox">
                                     <input
@@ -474,6 +611,28 @@ function ArticleForm() {
 
                     {activeTab === 'seo' && (
                         <>
+                            {/* SEO Score Gauge */}
+                            <div style={{
+                                display: 'flex',
+                                alignItems: 'center',
+                                gap: 'var(--space-xl)',
+                                padding: 'var(--space-lg)',
+                                background: 'var(--color-bg-tertiary)',
+                                borderRadius: 'var(--radius-lg)',
+                                marginBottom: 'var(--space-xl)',
+                            }}>
+                                <SEOGauge score={seoScore} />
+                                <div>
+                                    <h3 style={{ marginBottom: 'var(--space-sm)' }}>SEO স্কোর</h3>
+                                    <p style={{ color: 'var(--color-text-secondary)', fontSize: 'var(--text-sm)' }}>
+                                        {seoScore < 40 && '⚠️ SEO উন্নত করুন - মেটা ফিল্ড পূরণ করুন'}
+                                        {seoScore >= 40 && seoScore < 60 && '📊 SEO মধ্যম - আরও উন্নতি সম্ভব'}
+                                        {seoScore >= 60 && seoScore < 80 && '👍 SEO ভালো - কিছু উন্নতি বাকি'}
+                                        {seoScore >= 80 && '✅ SEO চমৎকার! গুগলে ভালো র‍্যাংক পাবে'}
+                                    </p>
+                                </div>
+                            </div>
+
                             {/* AI Generate Button */}
                             <div style={{
                                 padding: 'var(--space-lg)',
@@ -503,11 +662,6 @@ function ArticleForm() {
                                         ⚠️ {seoError}
                                     </p>
                                 )}
-                                {!settings.openaiApiKey && (
-                                    <p style={{ color: '#f59e0b', marginTop: 'var(--space-sm)', fontSize: 'var(--text-sm)' }}>
-                                        💡 <Link to="/admin/settings" style={{ color: '#f59e0b', textDecoration: 'underline' }}>সেটিংসে</Link> OpenAI API কী যোগ করুন
-                                    </p>
-                                )}
                             </div>
 
                             <div className="admin-form-group">
@@ -516,13 +670,13 @@ function ArticleForm() {
                                     type="text"
                                     name="metaTitle"
                                     className="admin-form-input"
-                                    placeholder="SEO এর জন্য শিরোনাম (৬০ অক্ষরের মধ্যে)"
+                                    placeholder="SEO এর জন্য শিরোনাম (৩০-৬০ অক্ষর আদর্শ)"
                                     value={formData.seo.metaTitle}
                                     onChange={handleSeoChange}
                                     maxLength={60}
                                 />
-                                <small style={{ color: 'var(--color-text-muted)' }}>
-                                    {formData.seo.metaTitle.length}/60 অক্ষর
+                                <small style={{ color: formData.seo.metaTitle.length >= 30 && formData.seo.metaTitle.length <= 60 ? '#22c55e' : 'var(--color-text-muted)' }}>
+                                    {formData.seo.metaTitle.length}/60 অক্ষর {formData.seo.metaTitle.length >= 30 && formData.seo.metaTitle.length <= 60 && '✓'}
                                 </small>
                             </div>
 
@@ -531,14 +685,14 @@ function ArticleForm() {
                                 <textarea
                                     name="metaDescription"
                                     className="admin-form-textarea"
-                                    placeholder="SEO এর জন্য সংক্ষিপ্ত বিবরণ (১৬০ অক্ষরের মধ্যে)"
+                                    placeholder="SEO এর জন্য সংক্ষিপ্ত বিবরণ (১২০-১৬০ অক্ষর আদর্শ)"
                                     value={formData.seo.metaDescription}
                                     onChange={handleSeoChange}
                                     style={{ minHeight: '80px' }}
                                     maxLength={160}
                                 />
-                                <small style={{ color: 'var(--color-text-muted)' }}>
-                                    {formData.seo.metaDescription.length}/160 অক্ষর
+                                <small style={{ color: formData.seo.metaDescription.length >= 120 && formData.seo.metaDescription.length <= 160 ? '#22c55e' : 'var(--color-text-muted)' }}>
+                                    {formData.seo.metaDescription.length}/160 অক্ষর {formData.seo.metaDescription.length >= 120 && '✓'}
                                 </small>
                             </div>
 
@@ -548,7 +702,7 @@ function ArticleForm() {
                                     type="text"
                                     name="keywords"
                                     className="admin-form-input"
-                                    placeholder="কমা দিয়ে আলাদা কীওয়ার্ড লিখুন"
+                                    placeholder="কমা দিয়ে আলাদা কীওয়ার্ড (৩-৮টি আদর্শ)"
                                     value={formData.seo.keywords}
                                     onChange={handleSeoChange}
                                 />
@@ -558,8 +712,8 @@ function ArticleForm() {
                                 padding: 'var(--space-md)',
                                 background: 'rgba(220, 38, 38, 0.1)',
                                 borderRadius: 'var(--radius-md)',
-                                marginBottom: 'var(--space-lg)',
                                 marginTop: 'var(--space-xl)',
+                                marginBottom: 'var(--space-lg)',
                                 border: '1px solid rgba(220, 38, 38, 0.3)',
                             }}>
                                 <strong>📰 Google News SEO</strong>
@@ -571,20 +725,8 @@ function ArticleForm() {
                                     type="text"
                                     name="googleNewsKeywords"
                                     className="admin-form-input"
-                                    placeholder="Google News এর জন্য কীওয়ার্ড (কমা দিয়ে আলাদা)"
+                                    placeholder="Google News এর জন্য কীওয়ার্ড"
                                     value={formData.seo.googleNewsKeywords}
-                                    onChange={handleSeoChange}
-                                />
-                            </div>
-
-                            <div className="admin-form-group">
-                                <label className="admin-form-label">Canonical URL</label>
-                                <input
-                                    type="url"
-                                    name="canonical"
-                                    className="admin-form-input"
-                                    placeholder="https://example.com/original-article"
-                                    value={formData.seo.canonical}
                                     onChange={handleSeoChange}
                                 />
                             </div>
@@ -622,7 +764,6 @@ function ArticleForm() {
                                     onChange={(e) => setMediaSearch(e.target.value)}
                                 />
                             </div>
-
                             {filteredMedia.length > 0 ? (
                                 <div style={{
                                     display: 'grid',
@@ -639,7 +780,6 @@ function ArticleForm() {
                                                 borderRadius: 'var(--radius-md)',
                                                 overflow: 'hidden',
                                                 border: '2px solid transparent',
-                                                transition: 'all var(--transition-fast)',
                                             }}
                                             onClick={() => handleSelectImage(media.url)}
                                         >
@@ -660,6 +800,44 @@ function ArticleForm() {
                     </div>
                 </div>
             )}
+
+            <style>{`
+                .ql-container {
+                    min-height: 250px;
+                    font-size: 16px;
+                    font-family: inherit;
+                }
+                .ql-editor {
+                    min-height: 250px;
+                }
+                .ql-toolbar {
+                    background: var(--color-bg-secondary);
+                    border-color: rgba(255,255,255,0.1) !important;
+                    border-radius: var(--radius-md) var(--radius-md) 0 0;
+                }
+                .ql-container {
+                    border-color: rgba(255,255,255,0.1) !important;
+                    border-radius: 0 0 var(--radius-md) var(--radius-md);
+                    background: var(--color-bg-secondary);
+                    color: var(--color-text-primary);
+                }
+                .ql-editor.ql-blank::before {
+                    color: var(--color-text-muted);
+                    font-style: normal;
+                }
+                .ql-snow .ql-stroke {
+                    stroke: var(--color-text-secondary);
+                }
+                .ql-snow .ql-fill {
+                    fill: var(--color-text-secondary);
+                }
+                .ql-snow .ql-picker {
+                    color: var(--color-text-secondary);
+                }
+                .ql-snow .ql-picker-options {
+                    background: var(--color-bg-tertiary);
+                }
+            `}</style>
         </div>
     );
 }

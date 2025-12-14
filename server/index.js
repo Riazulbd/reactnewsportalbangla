@@ -1,7 +1,7 @@
 require('dotenv').config();
 const express = require('express');
 const cors = require('cors');
-const { pool, initDB } = require('./db');
+const { pool, initDB, isDbAvailable } = require('./db');
 const articlesRoutes = require('./routes/articles');
 const categoriesRoutes = require('./routes/categories');
 const authRoutes = require('./routes/auth');
@@ -21,7 +21,11 @@ app.get('/article/:id', async (req, res, next) => {
     const isCrawler = /facebookexternalhit|Twitterbot|WhatsApp|LinkedInBot|Slackbot|TelegramBot|Pinterest|Googlebot/i.test(userAgent);
 
     if (!isCrawler) {
-        return next(); // Let nginx/frontend handle it
+        return next();
+    }
+
+    if (!isDbAvailable()) {
+        return next();
     }
 
     try {
@@ -38,7 +42,6 @@ app.get('/article/:id', async (req, res, next) => {
         const imageUrl = article.image || `${baseUrl}/default-og.jpg`;
         const description = article.excerpt || article.content?.substring(0, 200) || '';
 
-        // Send SSR HTML with correct Open Graph meta tags
         const html = `<!DOCTYPE html>
 <html lang="bn">
 <head>
@@ -47,7 +50,6 @@ app.get('/article/:id', async (req, res, next) => {
     <title>${article.title} - বাংলা সংবাদ পোর্টাল</title>
     <meta name="description" content="${description}">
     
-    <!-- Open Graph / Facebook -->
     <meta property="og:type" content="article">
     <meta property="og:url" content="${articleUrl}">
     <meta property="og:title" content="${article.title}">
@@ -59,10 +61,7 @@ app.get('/article/:id', async (req, res, next) => {
     <meta property="og:image:height" content="630">
     <meta property="og:locale" content="bn_BD">
     <meta property="og:site_name" content="বাংলা সংবাদ পোর্টাল">
-    <meta property="article:published_time" content="${article.created_at}">
-    <meta property="article:author" content="${article.author}">
     
-    <!-- Twitter -->
     <meta name="twitter:card" content="summary_large_image">
     <meta name="twitter:url" content="${articleUrl}">
     <meta name="twitter:title" content="${article.title}">
@@ -93,13 +92,29 @@ app.use('/api/webhook', webhookRoutes);
 
 // Health check
 app.get('/api/health', (req, res) => {
-    res.json({ status: 'ok', timestamp: new Date().toISOString() });
+    res.json({
+        status: 'ok',
+        database: isDbAvailable() ? 'connected' : 'disconnected',
+        timestamp: new Date().toISOString()
+    });
 });
 
-// Initialize database and start server
-initDB().then(() => {
-    app.listen(PORT, () => {
+// Start server (don't wait for DB, but try to connect)
+const startServer = async () => {
+    console.log('🚀 Starting server...');
+    console.log(`📊 DATABASE_URL: ${process.env.DATABASE_URL ? 'Set' : 'Not set (using default)'}`);
+
+    // Start HTTP server immediately
+    app.listen(PORT, '0.0.0.0', () => {
         console.log(`🚀 Server running on port ${PORT}`);
         console.log(`📡 API: http://localhost:${PORT}/api`);
     });
+
+    // Try to connect to database in background
+    await initDB();
+};
+
+startServer().catch(err => {
+    console.error('Server startup error:', err);
+    // Don't exit - keep running even with errors
 });

@@ -92,6 +92,8 @@ function saveConfig(config) {
 // Test database connection
 router.post('/test', async (req, res) => {
     const { host, port, database, username, password, sslMode } = req.body;
+    
+    console.log('Testing database connection to:', host, port, database, 'SSL:', sslMode);
 
     if (!host || !port || !database || !username || !password) {
         return res.status(400).json({
@@ -101,21 +103,26 @@ router.post('/test', async (req, res) => {
     }
 
     const poolConfig = createPoolConfig({ host, port, database, username, password, sslMode });
+    poolConfig.connectionTimeoutMillis = 15000; // Increased to 15 seconds for cloud DBs
     const testPool = new Pool(poolConfig);
 
     try {
+        console.log('Attempting to connect...');
         const client = await testPool.connect();
+        console.log('Connected! Querying version...');
         const result = await client.query('SELECT version()');
         client.release();
         await testPool.end();
 
+        console.log('Success! PostgreSQL version:', result.rows[0].version);
         res.json({
             success: true,
             message: 'সংযোগ সফল!',
             version: result.rows[0].version
         });
     } catch (err) {
-        await testPool.end().catch(() => { });
+        console.error('Connection failed:', err.message);
+        await testPool.end().catch(() => {});
         res.json({
             success: false,
             error: `সংযোগ ব্যর্থ: ${err.message}`

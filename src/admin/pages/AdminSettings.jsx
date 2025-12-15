@@ -133,6 +133,9 @@ function AdminSettings() {
                 </div>
             )}
 
+            {/* Database Configuration - First Priority */}
+            <DatabaseSettings />
+
             {/* Site Logo */}
             <div className="admin-table-container" style={{ marginBottom: 'var(--space-xl)' }}>
                 <div className="admin-table-header">

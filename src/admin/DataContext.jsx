@@ -3,6 +3,20 @@ import { articlesApi, categoriesApi, settingsApi, authApi } from '../services/ap
 
 const DataContext = createContext();
 
+// Predefined categories (bd-pratidin.com style) - used as fallback
+const PREDEFINED_CATEGORIES = [
+    { id: 1, name: 'জাতীয়', slug: 'national', color: '#dc2626', order_index: 0 },
+    { id: 2, name: 'রাজনীতি', slug: 'politics', color: '#ef4444', order_index: 1 },
+    { id: 3, name: 'মাঠে ময়দানে', slug: 'sports', color: '#22c55e', order_index: 2 },
+    { id: 4, name: 'শোবিজ', slug: 'entertainment', color: '#a855f7', order_index: 3 },
+    { id: 5, name: 'পূর্ব-পশ্চিম', slug: 'international', color: '#06b6d4', order_index: 4 },
+    { id: 6, name: 'অর্থনীতি', slug: 'economy', color: '#f59e0b', order_index: 5 },
+    { id: 7, name: 'তথ্যপ্রযুক্তি', slug: 'technology', color: '#3b82f6', order_index: 6 },
+    { id: 8, name: 'ইসলামী জীবন', slug: 'islamic', color: '#10b981', order_index: 7 },
+    { id: 9, name: 'মতামত', slug: 'opinion', color: '#8b5cf6', order_index: 8 },
+    { id: 10, name: 'জীবনযাপন', slug: 'lifestyle', color: '#ec4899', order_index: 9 },
+];
+
 // Check if API is available
 const isApiAvailable = async () => {
     try {
@@ -20,7 +34,7 @@ const isApiAvailable = async () => {
 
 export function DataProvider({ children }) {
     const [articles, setArticles] = useState([]);
-    const [categories, setCategories] = useState([]);
+    const [categories, setCategories] = useState(PREDEFINED_CATEGORIES);
     const [mediaLibrary, setMediaLibrary] = useState([]);
     const [users, setUsers] = useState([]);
     const [settings, setSettings] = useState({

@@ -1,5 +1,6 @@
 import { useState, useRef } from 'react';
 import { useData } from '../DataContext';
+import DatabaseSettings from './DatabaseSettings';
 import '../admin.css';
 
 function AdminSettings() {

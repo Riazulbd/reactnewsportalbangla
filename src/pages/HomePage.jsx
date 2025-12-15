@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef, useCallback } from 'react';
 import { Link } from 'react-router-dom';
 import { useData } from '../admin/DataContext';
 import ArticleCard from '../components/ArticleCard';
@@ -9,20 +9,56 @@ function HomePage() {
     const [email, setEmail] = useState('');
     const [subscribed, setSubscribed] = useState(false);
     const [currentSlide, setCurrentSlide] = useState(0);
+    const [isPaused, setIsPaused] = useState(false);
+    const touchStartX = useRef(null);
+    const touchEndX = useRef(null);
+    const sliderRef = useRef(null);
 
-    const { articles, categories, getFeaturedArticles, getMainCategories, getSubcategories } = useData();
+    const { articles, categories, getFeaturedArticles, getMainCategories, getSubcategories, settings } = useData();
 
     const featuredArticles = getFeaturedArticles();
     const mainCategories = getMainCategories();
 
-    // Auto-slide for featured slider (3 seconds)
+    // Configurable slider interval from settings (default 5 seconds)
+    const sliderInterval = settings?.sliderInterval || 5000;
+
+    // Auto-slide with configurable interval and pause-on-hover
     useEffect(() => {
-        if (featuredArticles.length > 1) {
+        if (featuredArticles.length > 1 && !isPaused) {
             const interval = setInterval(() => {
                 setCurrentSlide(prev => (prev + 1) % featuredArticles.length);
-            }, 3000);
+            }, sliderInterval);
             return () => clearInterval(interval);
         }
+    }, [featuredArticles.length, sliderInterval, isPaused]);
+
+    // Touch/Swipe handlers
+    const handleTouchStart = useCallback((e) => {
+        touchStartX.current = e.touches[0].clientX;
+    }, []);
+
+    const handleTouchMove = useCallback((e) => {
+        touchEndX.current = e.touches[0].clientX;
+    }, []);
+
+    const handleTouchEnd = useCallback(() => {
+        if (!touchStartX.current || !touchEndX.current) return;
+
+        const diff = touchStartX.current - touchEndX.current;
+        const minSwipeDistance = 50;
+
+        if (Math.abs(diff) > minSwipeDistance) {
+            if (diff > 0) {
+                // Swipe left - next slide
+                setCurrentSlide(prev => (prev + 1) % featuredArticles.length);
+            } else {
+                // Swipe right - previous slide
+                setCurrentSlide(prev => prev === 0 ? featuredArticles.length - 1 : prev - 1);
+            }
+        }
+
+        touchStartX.current = null;
+        touchEndX.current = null;
     }, [featuredArticles.length]);
 
     const handleSubscribe = (e) => {
@@ -61,7 +97,15 @@ function HomePage() {
                 {/* Featured Slider */}
                 {featuredArticles.length > 0 && (
                     <section className="hero-section">
-                        <div className="featured-slider">
+                        <div
+                            className="featured-slider"
+                            ref={sliderRef}
+                            onMouseEnter={() => setIsPaused(true)}
+                            onMouseLeave={() => setIsPaused(false)}
+                            onTouchStart={handleTouchStart}
+                            onTouchMove={handleTouchMove}
+                            onTouchEnd={handleTouchEnd}
+                        >
                             {featuredArticles.map((article, index) => (
                                 <Link
                                     key={article.id}

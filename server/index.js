@@ -5,12 +5,14 @@ console.log('----------------------------------------');
 
 const express = require('express');
 const cors = require('cors');
+const path = require('path');
 const { pool, initDB, isDbAvailable } = require('./db');
 const articlesRoutes = require('./routes/articles');
 const categoriesRoutes = require('./routes/categories');
 const authRoutes = require('./routes/auth');
 const settingsRoutes = require('./routes/settings');
 const webhookRoutes = require('./routes/webhook');
+const uploadRoutes = require('./routes/upload');
 
 const app = express();
 // Use BACKEND_PORT to avoid conflict with platform-injected PORT (usually 80 or 8080)
@@ -102,6 +104,10 @@ app.use('/api/categories', categoriesRoutes);
 app.use('/api/auth', authRoutes);
 app.use('/api/settings', settingsRoutes);
 app.use('/api/webhook', webhookRoutes);
+app.use('/api/upload', uploadRoutes);
+
+// Serve uploaded files statically
+app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
 
 // Health check
 app.get('/api/health', (req, res) => {

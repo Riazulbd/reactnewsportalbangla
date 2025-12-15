@@ -8,7 +8,6 @@ const isApiAvailable = async () => {
     try {
         const response = await fetch('/api/health');
         if (!response.ok) return false;
-        // Check if response is actually JSON (not Vite's HTML fallback)
         const contentType = response.headers.get('content-type');
         if (!contentType || !contentType.includes('application/json')) {
             return false;
@@ -32,70 +31,67 @@ export function DataProvider({ children }) {
         openaiApiKey: '',
         openaiModel: 'gpt-3.5-turbo',
         webhookApiKey: '',
+        sliderInterval: 5000,
+        maxImageSizeMB: 5,
     });
     const [theme, setTheme] = useState('dark');
     const [user, setUser] = useState(null);
     const [loading, setLoading] = useState(true);
-    const [useApi, setUseApi] = useState(false);
+    const [apiAvailable, setApiAvailable] = useState(false);
+    const [error, setError] = useState(null);
 
     // Load data on mount
     useEffect(() => {
         const loadData = async () => {
             setLoading(true);
+            setError(null);
 
             // Check if API is available
-            const apiAvailable = await isApiAvailable();
-            setUseApi(apiAvailable);
+            const available = await isApiAvailable();
+            setApiAvailable(available);
 
-            if (apiAvailable) {
-                // Load from API
-                try {
-                    const [articlesData, categoriesData, settingsData] = await Promise.all([
-                        articlesApi.getAll(),
-                        categoriesApi.getAll(),
-                        settingsApi.getAll().catch(() => ({})),
-                    ]);
-                    setArticles(articlesData || []);
-                    setCategories(categoriesData || []);
-                    setSettings(prev => ({ ...prev, ...settingsData }));
-
-                    // Try to get current user
-                    const token = localStorage.getItem('authToken');
-                    if (token) {
-                        try {
-                            const userData = await authApi.getCurrentUser();
-                            setUser(userData);
-                        } catch {
-                            localStorage.removeItem('authToken');
-                        }
-                    }
-
-                    // Load users list
-                    try {
-                        const usersData = await authApi.getUsers();
-                        setUsers(usersData || []);
-                    } catch {
-                        setUsers([]);
-                    }
-                } catch (error) {
-                    console.error('API load error:', error);
-                }
-            } else {
-                // Fallback to localStorage
-                const { articles: initialArticles, categories: initialCategories } = await import('../data/articles');
-
-                const storedArticles = localStorage.getItem('newsArticles');
-                const storedCategories = localStorage.getItem('newsCategories');
-                const storedSettings = localStorage.getItem('newsSettings');
-                const storedUsers = localStorage.getItem('newsUsers');
-
-                setArticles(storedArticles ? JSON.parse(storedArticles) : initialArticles);
-                setCategories(storedCategories ? JSON.parse(storedCategories) : initialCategories);
-                if (storedSettings) setSettings(prev => ({ ...prev, ...JSON.parse(storedSettings) }));
-                if (storedUsers) setUsers(JSON.parse(storedUsers));
+            if (!available) {
+                // API not available - show error (no localStorage fallback)
+                setError('API সার্ভার চালু নেই। অনুগ্রহ করে Backend সার্ভার চালু করুন।');
+                setLoading(false);
+                return;
             }
 
-            // Load theme
+            // Load from API
+            try {
+                const [articlesData, categoriesData, settingsData] = await Promise.all([
+                    articlesApi.getAll(),
+                    categoriesApi.getAll(),
+                    settingsApi.getAll().catch(() => ({})),
+                ]);
+                setArticles(articlesData || []);
+                setCategories(categoriesData || []);
+                setSettings(prev => ({ ...prev, ...settingsData }));
+
+                // Try to get current user
+                const token = localStorage.getItem('authToken');
+                if (token) {
+                    try {
+                        const userData = await authApi.getCurrentUser();
+                        setUser(userData);
+                    } catch {
+                        localStorage.removeItem('authToken');
+                    }
+                }
+
+                // Load users list
+                try {
+                    const usersData = await authApi.getUsers();
+                    setUsers(usersData || []);
+                } catch {
+                    setUsers([]);
+                }
+            } catch (err) {
+                console.error('API load error:', err);
+                setError('ডাটা লোড করতে সমস্যা হয়েছে।');
+            }
+
+            // Load theme (only theme stays in localStorage - it's just preference)
             const storedTheme = localStorage.getItem('newsTheme');
             if (storedTheme) {
                 setTheme(storedTheme);
@@ -108,7 +104,7 @@ export function DataProvider({ children }) {
         loadData();
     }, []);
 
-    // Theme toggle
+    // Theme toggle (theme preference can stay in localStorage)
     const toggleTheme = () => {
         const newTheme = theme === 'dark' ? 'light' : 'dark';
         setTheme(newTheme);
@@ -116,65 +112,26 @@ export function DataProvider({ children }) {
         document.documentElement.setAttribute('data-theme', newTheme);
     };
 
-    // Articles CRUD
+    // ===================== ARTICLES CRUD (API ONLY) =====================
     const addArticle = useCallback(async (article) => {
-        if (useApi) {
-            try {
-                const newArticle = await articlesApi.create(article);
-                setArticles(prev => [newArticle, ...prev]);
-                return newArticle;
-            } catch (error) {
-                console.error('Add article error:', error);
-                throw error;
-            }
-        } else {
-            const newArticle = {
-                ...article,
-                id: Math.max(...articles.map(a => a.id || 0), 0) + 1,
-                createdAt: new Date().toISOString(),
-            };
-            const updated = [newArticle, ...articles];
-            setArticles(updated);
-            localStorage.setItem('newsArticles', JSON.stringify(updated));
-            return newArticle;
-        }
-    }, [useApi, articles]);
+        if (!apiAvailable) throw new Error('API not available');
+        const newArticle = await articlesApi.create(article);
+        setArticles(prev => [newArticle, ...prev]);
+        return newArticle;
+    }, [apiAvailable]);
 
     const updateArticle = useCallback(async (id, updates) => {
-        if (useApi) {
-            try {
-                const updated = await articlesApi.update(id, updates);
-                setArticles(prev => prev.map(a => a.id === id ? updated : a));
-                return updated;
-            } catch (error) {
-                console.error('Update article error:', error);
-                throw error;
-            }
-        } else {
-            const updated = articles.map(a =>
-                a.id === parseInt(id) ? { ...a, ...updates, updatedAt: new Date().toISOString() } : a
-            );
-            setArticles(updated);
-            localStorage.setItem('newsArticles', JSON.stringify(updated));
-            return updated.find(a => a.id === parseInt(id));
-        }
-    }, [useApi, articles]);
+        if (!apiAvailable) throw new Error('API not available');
+        const updated = await articlesApi.update(id, updates);
+        setArticles(prev => prev.map(a => a.id === id ? updated : a));
+        return updated;
+    }, [apiAvailable]);
 
     const deleteArticle = useCallback(async (id) => {
-        if (useApi) {
-            try {
-                await articlesApi.delete(id);
-                setArticles(prev => prev.filter(a => a.id !== id));
-            } catch (error) {
-                console.error('Delete article error:', error);
-                throw error;
-            }
-        } else {
-            const updated = articles.filter(a => a.id !== parseInt(id));
-            setArticles(updated);
-            localStorage.setItem('newsArticles', JSON.stringify(updated));
-        }
-    }, [useApi, articles]);
+        if (!apiAvailable) throw new Error('API not available');
+        await articlesApi.delete(id);
+        setArticles(prev => prev.filter(a => a.id !== id));
+    }, [apiAvailable]);
 
     const getArticleById = useCallback((id) => {
         return articles.find(a => a.id === parseInt(id) || a.slug === id);
@@ -213,65 +170,26 @@ export function DataProvider({ children }) {
         );
     }, [articles]);
 
-    // Categories CRUD
+    // ===================== CATEGORIES CRUD (API ONLY) =====================
     const addCategory = useCallback(async (category) => {
-        if (useApi) {
-            try {
-                const newCat = await categoriesApi.create(category);
-                setCategories(prev => [...prev, newCat]);
-                return newCat;
-            } catch (error) {
-                console.error('Add category API error, falling back to localStorage:', error);
-                // Fall through to localStorage fallback
-            }
-        }
-        // localStorage fallback
-        const newCat = {
-            ...category,
-            id: category.slug || category.name.toLowerCase().replace(/\s+/g, '-'),
-        };
-        const updated = [...categories, newCat];
-        setCategories(updated);
-        localStorage.setItem('newsCategories', JSON.stringify(updated));
+        if (!apiAvailable) throw new Error('API not available');
+        const newCat = await categoriesApi.create(category);
+        setCategories(prev => [...prev, newCat]);
         return newCat;
-    }, [useApi, categories]);
+    }, [apiAvailable]);
 
     const updateCategory = useCallback(async (id, updates) => {
-        if (useApi) {
-            try {
-                const updated = await categoriesApi.update(id, updates);
-                setCategories(prev => prev.map(c => c.id === id ? updated : c));
-                return updated;
-            } catch (error) {
-                console.error('Update category API error, falling back to localStorage:', error);
-                // Fall through to localStorage fallback
-            }
-        }
-        // localStorage fallback
-        const updated = categories.map(c =>
-            c.id === id ? { ...c, ...updates } : c
-        );
-        setCategories(updated);
-        localStorage.setItem('newsCategories', JSON.stringify(updated));
-        return updated.find(c => c.id === id);
-    }, [useApi, categories]);
+        if (!apiAvailable) throw new Error('API not available');
+        const updated = await categoriesApi.update(id, updates);
+        setCategories(prev => prev.map(c => c.id === id ? updated : c));
+        return updated;
+    }, [apiAvailable]);
 
     const deleteCategory = useCallback(async (id) => {
-        if (useApi) {
-            try {
-                await categoriesApi.delete(id);
-                setCategories(prev => prev.filter(c => c.id !== id));
-                return;
-            } catch (error) {
-                console.error('Delete category API error, falling back to localStorage:', error);
-                // Fall through to localStorage fallback
-            }
-        }
-        // localStorage fallback
-        const updated = categories.filter(c => c.id !== id);
-        setCategories(updated);
-        localStorage.setItem('newsCategories', JSON.stringify(updated));
-    }, [useApi, categories]);
+        if (!apiAvailable) throw new Error('API not available');
+        await categoriesApi.delete(id);
+        setCategories(prev => prev.filter(c => c.id !== id));
+    }, [apiAvailable]);
 
     const getMainCategories = useCallback(() => {
         const mainCats = categories.filter(c => !c.parent_id && !c.parentId);
@@ -294,109 +212,64 @@ export function DataProvider({ children }) {
     const getAllCategories = useCallback(() => categories, [categories]);
 
     const reorderCategories = useCallback(async (order) => {
-        if (useApi) {
+        if (apiAvailable) {
             try {
                 await categoriesApi.reorder(order);
-            } catch (error) {
-                console.error('Reorder error:', error);
+            } catch (err) {
+                console.error('Reorder error:', err);
             }
         }
         await saveSettings({ categoryOrder: order });
-    }, [useApi]);
+    }, [apiAvailable]);
 
-    // Settings
+    // ===================== SETTINGS (API ONLY) =====================
     const saveSettings = useCallback(async (newSettings) => {
         const updated = { ...settings, ...newSettings };
         setSettings(updated);
 
-        if (useApi) {
+        if (apiAvailable) {
             try {
                 await settingsApi.save(newSettings);
-            } catch (error) {
-                console.error('Save settings error:', error);
+            } catch (err) {
+                console.error('Save settings error:', err);
+                throw err;
             }
         }
-        localStorage.setItem('newsSettings', JSON.stringify(updated));
-    }, [useApi, settings]);
+    }, [apiAvailable, settings]);
 
     // Webhook API Key
     const generateWebhookApiKey = useCallback(async () => {
-        if (useApi) {
-            try {
-                const { apiKey } = await settingsApi.generateApiKey();
-                setSettings(prev => ({ ...prev, webhookApiKey: apiKey }));
-                return apiKey;
-            } catch (error) {
-                console.error('Generate API key error:', error);
-            }
-        }
-        // Fallback
-        const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789';
-        let key = 'whk_';
-        for (let i = 0; i < 32; i++) {
-            key += chars.charAt(Math.floor(Math.random() * chars.length));
-        }
-        await saveSettings({ webhookApiKey: key });
-        return key;
-    }, [useApi, saveSettings]);
+        if (!apiAvailable) throw new Error('API not available');
+        const { apiKey } = await settingsApi.generateApiKey();
+        setSettings(prev => ({ ...prev, webhookApiKey: apiKey }));
+        return apiKey;
+    }, [apiAvailable]);
 
-    // Users (API only for full CRUD)
+    // ===================== USERS (API ONLY) =====================
     const addUser = useCallback(async (userData) => {
-        if (useApi) {
-            try {
-                const newUser = await authApi.createUser(userData);
-                setUsers(prev => [...prev, newUser]);
-                return newUser;
-            } catch (error) {
-                console.error('Add user error:', error);
-                throw error;
-            }
-        }
-        // Fallback
-        const newUser = { ...userData, id: users.length + 1, createdAt: new Date().toISOString() };
-        const updated = [...users, newUser];
-        setUsers(updated);
-        localStorage.setItem('newsUsers', JSON.stringify(updated));
+        if (!apiAvailable) throw new Error('API not available');
+        const newUser = await authApi.createUser(userData);
+        setUsers(prev => [...prev, newUser]);
         return newUser;
-    }, [useApi, users]);
+    }, [apiAvailable]);
 
     const updateUser = useCallback(async (id, updates) => {
-        if (useApi) {
-            try {
-                const updated = await authApi.updateUser(id, updates);
-                setUsers(prev => prev.map(u => u.id === id ? updated : u));
-                return updated;
-            } catch (error) {
-                console.error('Update user error:', error);
-                throw error;
-            }
-        }
-        const updated = users.map(u => u.id === id ? { ...u, ...updates } : u);
-        setUsers(updated);
-        localStorage.setItem('newsUsers', JSON.stringify(updated));
-        return updated.find(u => u.id === id);
-    }, [useApi, users]);
+        if (!apiAvailable) throw new Error('API not available');
+        const updated = await authApi.updateUser(id, updates);
+        setUsers(prev => prev.map(u => u.id === id ? updated : u));
+        return updated;
+    }, [apiAvailable]);
 
     const deleteUser = useCallback(async (id) => {
-        if (id === 1) return;
-        if (useApi) {
-            try {
-                await authApi.deleteUser(id);
-                setUsers(prev => prev.filter(u => u.id !== id));
-            } catch (error) {
-                console.error('Delete user error:', error);
-                throw error;
-            }
-        } else {
-            const updated = users.filter(u => u.id !== id);
-            setUsers(updated);
-            localStorage.setItem('newsUsers', JSON.stringify(updated));
-        }
-    }, [useApi, users]);
+        if (id === 1) return; // Protect admin
+        if (!apiAvailable) throw new Error('API not available');
+        await authApi.deleteUser(id);
+        setUsers(prev => prev.filter(u => u.id !== id));
+    }, [apiAvailable]);
 
     const getUserById = useCallback((id) => users.find(u => u.id === id), [users]);
 
-    // Slug generation
+    // ===================== SLUG GENERATION =====================
     const generateSlug = useCallback((title) => {
         return title
             .toLowerCase()
@@ -470,20 +343,18 @@ export function DataProvider({ children }) {
         }
     }, [settings.openaiApiKey, settings.openaiModel]);
 
-    // Media library
-    const addMedia = useCallback((media) => {
+    // ===================== MEDIA LIBRARY (API when available) =====================
+    const addMedia = useCallback(async (media) => {
         const newMedia = { ...media, id: Date.now(), createdAt: new Date().toISOString() };
-        const updated = [newMedia, ...mediaLibrary];
-        setMediaLibrary(updated);
-        localStorage.setItem('newsMediaLibrary', JSON.stringify(updated));
+        setMediaLibrary(prev => [newMedia, ...prev]);
+        // TODO: Implement media API when ready
         return newMedia;
-    }, [mediaLibrary]);
+    }, []);
 
-    const deleteMedia = useCallback((id) => {
-        const updated = mediaLibrary.filter(m => m.id !== id);
-        setMediaLibrary(updated);
-        localStorage.setItem('newsMediaLibrary', JSON.stringify(updated));
-    }, [mediaLibrary]);
+    const deleteMedia = useCallback(async (id) => {
+        setMediaLibrary(prev => prev.filter(m => m.id !== id));
+        // TODO: Implement media API when ready
+    }, []);
 
     const searchMedia = useCallback((query) => {
         const lower = query.toLowerCase();
@@ -495,87 +366,101 @@ export function DataProvider({ children }) {
 
     // User password update
     const updateUserPassword = useCallback(async (currentPassword, newPassword) => {
-        if (useApi) {
-            // API handles password update
-            try {
-                await authApi.updateUser(user.id, { password: newPassword });
-                return { success: true };
-            } catch (error) {
-                return { success: false, error: error.message };
-            }
+        if (!apiAvailable) throw new Error('API not available');
+        const response = await fetch('/api/auth/password', {
+            method: 'PUT',
+            headers: {
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer ${localStorage.getItem('authToken')}`,
+            },
+            body: JSON.stringify({ currentPassword, newPassword }),
+        });
+        if (!response.ok) {
+            const data = await response.json();
+            throw new Error(data.error || 'Password update failed');
         }
-        // Fallback
-        const currentUser = users.find(u => u.id === user?.id);
-        if (currentUser && currentUser.password === currentPassword) {
-            await updateUser(user.id, { password: newPassword });
-            return { success: true };
+        return true;
+    }, [apiAvailable]);
+
+    // Refresh data
+    const refreshData = useCallback(async () => {
+        if (!apiAvailable) return;
+        try {
+            const [articlesData, categoriesData] = await Promise.all([
+                articlesApi.getAll(),
+                categoriesApi.getAll(),
+            ]);
+            setArticles(articlesData || []);
+            setCategories(categoriesData || []);
+        } catch (err) {
+            console.error('Refresh error:', err);
         }
-        return { success: false, error: 'ভুল পাসওয়ার্ড' };
-    }, [useApi, user, users, updateUser]);
+    }, [apiAvailable]);
 
-    const saveUser = useCallback((userData) => {
-        setUser(userData);
-        localStorage.setItem('newsUser', JSON.stringify(userData));
-    }, []);
+    const value = {
+        // State
+        articles,
+        categories,
+        mediaLibrary,
+        users,
+        settings,
+        theme,
+        user,
+        loading,
+        error,
+        apiAvailable,
+        setUser,
 
-    if (loading) {
-        return (
-            <div style={{
-                display: 'flex',
-                justifyContent: 'center',
-                alignItems: 'center',
-                height: '100vh',
-                background: 'var(--color-bg-primary)',
-                color: 'var(--color-text-primary)'
-            }}>
-                <div>লোড হচ্ছে...</div>
-            </div>
-        );
-    }
+        // Theme
+        toggleTheme,
+
+        // Articles
+        addArticle,
+        updateArticle,
+        deleteArticle,
+        getArticleById,
+        getArticlesByCategory,
+        getFeaturedArticles,
+        setFeaturedArticles,
+        getHeroArticle,
+        searchArticles,
+
+        // Categories
+        addCategory,
+        updateCategory,
+        deleteCategory,
+        getMainCategories,
+        getSubcategories,
+        getAllCategories,
+        reorderCategories,
+
+        // Settings
+        saveSettings,
+        generateWebhookApiKey,
+
+        // Users
+        addUser,
+        updateUser,
+        deleteUser,
+        getUserById,
+        updateUserPassword,
+
+        // Utilities
+        generateSlug,
+        generateSlugWithAI,
+        generateSEOWithAI,
+
+        // Media
+        addMedia,
+        deleteMedia,
+        searchMedia,
+
+        // Refresh
+        refreshData,
+    };
 
     return (
-        <DataContext.Provider value={{
-            articles,
-            categories,
-            mediaLibrary,
-            settings,
-            theme,
-            user,
-            users,
-            loading,
-            useApi,
-            toggleTheme,
-            generateSlug,
-            generateSlugWithAI,
-            generateSEOWithAI,
-            addArticle,
-            updateArticle,
-            deleteArticle,
-            getArticleById,
-            getArticlesByCategory,
-            getFeaturedArticles,
-            setFeaturedArticles,
-            getHeroArticle,
-            searchArticles,
-            addCategory,
-            updateCategory,
-            deleteCategory,
-            getMainCategories,
-            getSubcategories,
-            getAllCategories,
-            reorderCategories,
-            addMedia,
-            deleteMedia,
-            searchMedia,
-            saveSettings,
-            generateWebhookApiKey,
-            updateUserPassword,
-            saveUser,
-            addUser,
-            updateUser,
-            deleteUser,
-            getUserById,
-        }}>
+        <DataContext.Provider value={value}>
             {children}
         </DataContext.Provider>
     );
@@ -588,3 +473,5 @@ export function useData() {
     }
     return context;
 }
+
+export default DataContext;

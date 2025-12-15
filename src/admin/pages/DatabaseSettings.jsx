@@ -56,10 +56,29 @@ function DatabaseSettings() {
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify(dbConfig)
             });
-            const data = await response.json();
+
+            // Check if response is ok first
+            if (!response.ok) {
+                const text = await response.text();
+                try {
+                    const data = JSON.parse(text);
+                    setTestResult({ success: false, error: data.error || 'Request failed' });
+                } catch {
+                    setTestResult({ success: false, error: `Server error: ${response.status}` });
+                }
+                return;
+            }
+
+            const text = await response.text();
+            if (!text) {
+                setTestResult({ success: false, error: 'Empty response from server' });
+                return;
+            }
+
+            const data = JSON.parse(text);
             setTestResult(data);
         } catch (err) {
-            setTestResult({ success: false, error: err.message });
+            setTestResult({ success: false, error: `Network error: ${err.message}` });
         } finally {
             setLoading(false);
         }

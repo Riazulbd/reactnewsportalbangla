@@ -16,7 +16,7 @@ services:
       - DB_ENCRYPTION_KEY=${DB_ENCRYPTION_KEY:-newsportal-secure-key-32chars!!}
     volumes:
       - ./server/uploads:/app/uploads
-      - ./server/config.json:/app/config.json
+      # config.json not needed as volume unless you have a specific config file to inject
     healthcheck:
       test: [ "CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:3001/api/health" ]
       interval: 30s
@@ -34,5 +34,5 @@ services:
       - "80:80"
     depends_on:
       - newsportal-backend
-    environment:
-      - VITE_API_URL=http://newsportal-backend:3001/api
+    # VITE_API_URL is baked in at build time or handled by nginx proxy /api
+

@@ -7,7 +7,8 @@ function DatabaseSettings() {
         port: '5432',
         database: '',
         username: '',
-        password: ''
+        password: '',
+        sslMode: 'disable'
     });
     const [loading, setLoading] = useState(false);
     const [testResult, setTestResult] = useState(null);
@@ -29,11 +30,12 @@ function DatabaseSettings() {
                     port: data.port || '5432',
                     database: data.database || '',
                     username: data.username || '',
+                    sslMode: data.sslMode || 'disable',
                     password: data.hasPassword ? '••••••••' : ''
                 }));
             }
         } catch {
-            // Ignore errors
+            // Ignore errors - backend may not be running
         }
     };
 
@@ -123,13 +125,14 @@ function DatabaseSettings() {
             <div style={{ padding: 'var(--space-lg)' }}>
                 <div style={{
                     padding: 'var(--space-md)',
-                    background: 'rgba(245, 158, 11, 0.1)',
-                    border: '1px solid rgba(245, 158, 11, 0.3)',
+                    background: 'rgba(59, 130, 246, 0.1)',
+                    border: '1px solid rgba(59, 130, 246, 0.3)',
                     borderRadius: 'var(--radius-md)',
                     marginBottom: 'var(--space-lg)',
-                    color: '#f59e0b'
+                    color: 'var(--color-text-secondary)',
+                    fontSize: 'var(--text-sm)'
                 }}>
-                    ⚠️ <strong>সতর্কতা:</strong> প্রোডাকশনে .env ফাইল ব্যবহার করুন। এই UI শুধুমাত্র ডেভেলপমেন্ট/টেস্টিং এর জন্য।
+                    ℹ️ যেকোনো PostgreSQL প্রোভাইডার সমর্থিত: Aiven, Supabase, Neon, Railway, AWS RDS, নিজের VPS ইত্যাদি।
                 </div>
 
                 {message && (
@@ -149,7 +152,7 @@ function DatabaseSettings() {
 
                 <div style={{
                     display: 'grid',
-                    gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))',
+                    gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))',
                     gap: 'var(--space-md)'
                 }}>
                     <div className="admin-form-group">
@@ -157,7 +160,7 @@ function DatabaseSettings() {
                         <input
                             type="text"
                             className="admin-form-input"
-                            placeholder="localhost"
+                            placeholder="pg-xxx.aivencloud.com"
                             value={dbConfig.host}
                             onChange={(e) => handleChange('host', e.target.value)}
                         />
@@ -177,7 +180,7 @@ function DatabaseSettings() {
                         <input
                             type="text"
                             className="admin-form-input"
-                            placeholder="newsportal"
+                            placeholder="defaultdb"
                             value={dbConfig.database}
                             onChange={(e) => handleChange('database', e.target.value)}
                         />
@@ -187,12 +190,12 @@ function DatabaseSettings() {
                         <input
                             type="text"
                             className="admin-form-input"
-                            placeholder="admin"
+                            placeholder="avnadmin"
                             value={dbConfig.username}
                             onChange={(e) => handleChange('username', e.target.value)}
                         />
                     </div>
-                    <div className="admin-form-group" style={{ gridColumn: 'span 2' }}>
+                    <div className="admin-form-group">
                         <label className="admin-form-label">Password</label>
                         <input
                             type="password"
@@ -201,6 +204,20 @@ function DatabaseSettings() {
                             value={dbConfig.password}
                             onChange={(e) => handleChange('password', e.target.value)}
                         />
+                    </div>
+                    <div className="admin-form-group">
+                        <label className="admin-form-label">SSL Mode</label>
+                        <select
+                            className="admin-form-input"
+                            value={dbConfig.sslMode}
+                            onChange={(e) => handleChange('sslMode', e.target.value)}
+                            style={{ cursor: 'pointer' }}
+                        >
+                            <option value="disable">Disable (Local)</option>
+                            <option value="prefer">Prefer</option>
+                            <option value="require">Require (Cloud)</option>
+                            <option value="verify-full">Verify Full</option>
+                        </select>
                     </div>
                 </div>
 

@@ -32,8 +32,36 @@ function decrypt(text) {
         decrypted = Buffer.concat([decrypted, decipher.final()]);
         return decrypted.toString();
     } catch {
-        return text; // Return as-is if decryption fails
+        return text;
     }
+}
+
+// Create pool configuration with SSL support
+function createPoolConfig(config) {
+    const { host, port, database, username, password, sslMode } = config;
+
+    const poolConfig = {
+        host,
+        port: parseInt(port),
+        database,
+        user: username,
+        password,
+        connectionTimeoutMillis: 10000,
+    };
+
+    // SSL configuration for cloud providers (Aiven, Supabase, Neon, etc.)
+    if (sslMode === 'require' || sslMode === 'verify-full') {
+        poolConfig.ssl = {
+            rejectUnauthorized: sslMode === 'verify-full'
+        };
+    } else if (sslMode === 'prefer') {
+        poolConfig.ssl = {
+            rejectUnauthorized: false
+        };
+    }
+    // No SSL for 'disable' or undefined
+
+    return poolConfig;
 }
 
 // Load saved config
@@ -63,7 +91,7 @@ function saveConfig(config) {
 
 // Test database connection
 router.post('/test', async (req, res) => {
-    const { host, port, database, username, password } = req.body;
+    const { host, port, database, username, password, sslMode } = req.body;
 
     if (!host || !port || !database || !username || !password) {
         return res.status(400).json({
@@ -72,8 +100,8 @@ router.post('/test', async (req, res) => {
         });
     }
 
-    const connectionString = `postgres://${username}:${password}@${host}:${port}/${database}`;
-    const testPool = new Pool({ connectionString, connectionTimeoutMillis: 5000 });
+    const poolConfig = createPoolConfig({ host, port, database, username, password, sslMode });
+    const testPool = new Pool(poolConfig);
 
     try {
         const client = await testPool.connect();
@@ -97,7 +125,7 @@ router.post('/test', async (req, res) => {
 
 // Save database configuration
 router.post('/configure', async (req, res) => {
-    const { host, port, database, username, password } = req.body;
+    const { host, port, database, username, password, sslMode } = req.body;
 
     if (!host || !port || !database || !username || !password) {
         return res.status(400).json({
@@ -106,17 +134,16 @@ router.post('/configure', async (req, res) => {
         });
     }
 
-    // Test connection first
-    const connectionString = `postgres://${username}:${password}@${host}:${port}/${database}`;
-    const testPool = new Pool({ connectionString, connectionTimeoutMillis: 5000 });
+    const poolConfig = createPoolConfig({ host, port, database, username, password, sslMode });
+    const testPool = new Pool(poolConfig);
 
     try {
         const client = await testPool.connect();
         client.release();
         await testPool.end();
 
-        // Save configuration
-        saveConfig({ host, port, database, username, password });
+        // Save configuration including SSL mode
+        saveConfig({ host, port, database, username, password, sslMode });
 
         res.json({
             success: true,
@@ -133,10 +160,10 @@ router.post('/configure', async (req, res) => {
 
 // Run migrations
 router.post('/migrate', async (req, res) => {
-    const { host, port, database, username, password } = req.body;
+    const { host, port, database, username, password, sslMode } = req.body;
 
-    const connectionString = `postgres://${username}:${password}@${host}:${port}/${database}`;
-    const pool = new Pool({ connectionString });
+    const poolConfig = createPoolConfig({ host, port, database, username, password, sslMode });
+    const pool = new Pool(poolConfig);
 
     try {
         const client = await pool.connect();
@@ -211,7 +238,7 @@ router.post('/migrate', async (req, res) => {
         await pool.end();
 
         // Save config after successful migration
-        saveConfig({ host, port, database, username, password });
+        saveConfig({ host, port, database, username, password, sslMode });
 
         res.json({
             success: true,
@@ -235,6 +262,7 @@ router.get('/config', (req, res) => {
             port: config.port,
             database: config.database,
             username: config.username,
+            sslMode: config.sslMode || 'disable',
             hasPassword: !!config.password
         });
     } else {
@@ -243,6 +271,7 @@ router.get('/config', (req, res) => {
             port: '5432',
             database: '',
             username: '',
+            sslMode: 'disable',
             hasPassword: false
         });
     }

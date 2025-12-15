@@ -111,6 +111,11 @@ app.use('/api/database', databaseRoutes);
 // Serve uploaded files statically
 app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
 
+// Root route
+app.get('/', (req, res) => {
+    res.send('📰 News Portal Backend API is running!');
+});
+
 // Health check
 app.get('/api/health', (req, res) => {
     res.json({

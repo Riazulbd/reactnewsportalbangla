@@ -68,7 +68,21 @@ If you are running on a server with Docker Compose:
 -   Check `nginx.conf` (it should perform the routing).
 -   Ensure you are actually running the containers (`docker ps`).
 
-## 3. "Docker Personal Token" Explanation
+### 4. Database Connection (Critical)
+DigitalOcean App Platform makes this easy. You **DO NOT** need to enter credentials manually.
+1.  Go to **Settings** -> **Components** -> `newsportal-api`.
+2.  Click **Environment Variables**.
+3.  Ensure `DATABASE_URL` is checked (Magic Link).
+4.  If not present, make sure you have "Attached" your database to the app in the dashboard.
+
+### 5. Important: Profile Pictures & Logo (Ephemeral Storage)
+**Warning**: DigitalOcean App Platform "Web Services" have **Ephemeral Filesystems**.
+This means any file you upload (like a Logo or Profile Picture) will **disappear** when the app restarts or redeploys.
+**Solution**:
+-   **Logos**: Host your logo on an external site (like Imgur) and paste the URL in the settings.
+-   **Real Fix**: To support permanent file uploads, you need to use **DigitalOcean Spaces (S3)** and update the backend code to upload there.
+
+## 6. "Docker Personal Token" Explanation
 If you were asked for a "Docker Personal Token":
 
 This happens if your repository is **Private**. DigitalOcean needs permission to pull failure.

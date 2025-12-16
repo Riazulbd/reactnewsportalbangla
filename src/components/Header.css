@@ -105,9 +105,18 @@
 
 .logo-container {
     display: flex;
-    justify-content: space-between;
+    justify-content: center;
     align-items: center;
+    position: relative;
 }
+
+.logo-actions {
+    display: flex;
+    gap: var(--space-sm);
+    position: absolute;
+    right: 0;
+}
+
 
 .logo {
     display: flex;

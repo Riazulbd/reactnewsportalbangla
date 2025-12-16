@@ -3,17 +3,19 @@ const fs = require('fs');
 const path = require('path');
 const crypto = require('crypto');
 
-// Encryption key (must match database.js route)
-const ENCRYPTION_KEY = process.env.DB_ENCRYPTION_KEY || 'newsportal-secure-key-32chars!!';
+// Derive a 32-byte key from any input using SHA-256 (must match database.js)
+const RAW_KEY = process.env.DB_ENCRYPTION_KEY || 'newsportal-secure-key-default';
+const ENCRYPTION_KEY = crypto.createHash('sha256').update(RAW_KEY).digest();
 const IV_LENGTH = 16;
 
 // Decrypt function
 function decrypt(text) {
     try {
         const textParts = text.split(':');
+        if (textParts.length < 2) return text; // Not encrypted
         const iv = Buffer.from(textParts.shift(), 'hex');
         const encryptedText = Buffer.from(textParts.join(':'), 'hex');
-        const decipher = crypto.createDecipheriv('aes-256-cbc', Buffer.from(ENCRYPTION_KEY), iv);
+        const decipher = crypto.createDecipheriv('aes-256-cbc', ENCRYPTION_KEY, iv);
         let decrypted = decipher.update(encryptedText);
         decrypted = Buffer.concat([decrypted, decipher.final()]);
         return decrypted.toString();
@@ -21,6 +23,7 @@ function decrypt(text) {
         return text;
     }
 }
+
 
 // Load saved config from config.json
 function loadSavedConfig() {

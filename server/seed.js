@@ -405,4 +405,14 @@ async function seed() {
     }
 }
 
-seed();
+// Export seed function
+module.exports = { seed };
+
+// Run if called directly
+if (require.main === module) {
+    seed().catch(err => {
+        console.error(err);
+        process.exit(1);
+    });
+}
+

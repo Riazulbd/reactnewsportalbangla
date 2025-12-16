@@ -67,16 +67,35 @@ const initDB = async (retries = 10, delay = 3000) => {
                 -- Media library table
                 CREATE TABLE IF NOT EXISTS media (
                     id SERIAL PRIMARY KEY,
-                    url TEXT NOT NULL,
-                    name VARCHAR(255),
-                    alt TEXT,
-                    type VARCHAR(100),
+                    filename VARCHAR(255) NOT NULL,
+                    original_name VARCHAR(255),
+                    mime_type VARCHAR(100),
                     size INTEGER,
+                    url TEXT,
                     created_at TIMESTAMP DEFAULT NOW()
                 );
             `);
 
             console.log('✅ Database tables initialized');
+
+            // Check if seeding is needed
+            const result = await client.query('SELECT COUNT(*) FROM articles');
+            const count = parseInt(result.rows[0].count);
+
+            if (count === 0) {
+                console.log('🌱 Database is empty. Running auto-seed...');
+                // Lazy load seed to avoid circular dependencies if any (though currently none)
+                // But better to just run the seed logic here or call the seed file.
+                // Since seed.js is a standalone script, we should modify it to export the function or assume it runs.
+                // To be safe and reuse code, let's assume we will modify seed.js next.
+                // For this step, I will assume we will modify seed.js next.
+
+                const { seed } = require('./seed');
+                await seed();
+            } else {
+                console.log(`✅ Database already contains ${count} articles. Skipping seed.`);
+            }
+
             client.release();
             dbAvailable = true;
             return true;

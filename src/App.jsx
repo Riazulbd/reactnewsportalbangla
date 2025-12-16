@@ -18,6 +18,7 @@ import ArticleForm from './admin/pages/ArticleForm';
 import CategoryManager from './admin/pages/CategoryManager';
 import MediaLibrary from './admin/pages/MediaLibrary';
 import AdminSettings from './admin/pages/AdminSettings';
+import DatabaseSettings from './admin/pages/DatabaseSettings';
 import Profile from './admin/pages/Profile';
 import UserManagement from './admin/pages/UserManagement';
 
@@ -86,6 +87,7 @@ function App() {
               <Route path="categories" element={<CategoryManager />} />
               <Route path="media" element={<MediaLibrary />} />
               <Route path="settings" element={<AdminSettings />} />
+              <Route path="database" element={<DatabaseSettings />} />
               <Route path="profile" element={<Profile />} />
               <Route path="users" element={<UserManagement />} />
             </Route>

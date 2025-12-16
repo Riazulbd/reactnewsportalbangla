@@ -1,14 +1,93 @@
 const { Pool } = require('pg');
+const fs = require('fs');
+const path = require('path');
+const crypto = require('crypto');
+
+// Encryption key (must match database.js route)
+const ENCRYPTION_KEY = process.env.DB_ENCRYPTION_KEY || 'newsportal-secure-key-32chars!!';
+const IV_LENGTH = 16;
+
+// Decrypt function
+function decrypt(text) {
+    try {
+        const textParts = text.split(':');
+        const iv = Buffer.from(textParts.shift(), 'hex');
+        const encryptedText = Buffer.from(textParts.join(':'), 'hex');
+        const decipher = crypto.createDecipheriv('aes-256-cbc', Buffer.from(ENCRYPTION_KEY), iv);
+        let decrypted = decipher.update(encryptedText);
+        decrypted = Buffer.concat([decrypted, decipher.final()]);
+        return decrypted.toString();
+    } catch {
+        return text;
+    }
+}
+
+// Load saved config from config.json
+function loadSavedConfig() {
+    const configPath = path.join(__dirname, 'config.json');
+    try {
+        if (fs.existsSync(configPath)) {
+            const config = JSON.parse(fs.readFileSync(configPath, 'utf8'));
+            if (config.password) {
+                config.password = decrypt(config.password);
+            }
+            return config;
+        }
+    } catch (err) {
+        console.error('Error loading saved DB config:', err.message);
+    }
+    return null;
+}
+
+// Build connection string from saved config
+function getConnectionString() {
+    // Priority 1: Environment variable
+    if (process.env.DATABASE_URL) {
+        console.log('📊 Using DATABASE_URL from environment');
+        return process.env.DATABASE_URL;
+    }
+
+    // Priority 2: Saved config.json
+    const savedConfig = loadSavedConfig();
+    if (savedConfig && savedConfig.host && savedConfig.password) {
+        console.log('📊 Using saved database configuration from config.json');
+        const { host, port, database, username, password } = savedConfig;
+        return `postgres://${username}:${encodeURIComponent(password)}@${host}:${port}/${database}`;
+    }
+
+    // Priority 3: Default local database
+    console.log('📊 No database configured. Using local default.');
+    return 'postgres://admin:secret123@localhost:5432/newsportal';
+}
+
+// Get SSL config from saved config
+function getSSLConfig() {
+    const savedConfig = loadSavedConfig();
+    if (savedConfig && savedConfig.sslMode) {
+        if (savedConfig.sslMode === 'require' || savedConfig.sslMode === 'verify-full') {
+            return { rejectUnauthorized: savedConfig.sslMode === 'verify-full' };
+        } else if (savedConfig.sslMode === 'prefer') {
+            return { rejectUnauthorized: false };
+        }
+    }
+    // Check if using cloud database (DATABASE_URL usually requires SSL)
+    if (process.env.DATABASE_URL && !process.env.DATABASE_URL.includes('localhost')) {
+        return { rejectUnauthorized: false };
+    }
+    return undefined;
+}
 
 const pool = new Pool({
-    connectionString: process.env.DATABASE_URL || 'postgres://admin:secret123@localhost:5432/newsportal',
-    connectionTimeoutMillis: 5000,
+    connectionString: getConnectionString(),
+    ssl: getSSLConfig(),
+    connectionTimeoutMillis: 10000,
     idleTimeoutMillis: 30000,
     max: 10,
 });
 
 // Track database availability
 let dbAvailable = false;
+
 
 // Initialize database tables with retry
 const initDB = async (retries = 10, delay = 3000) => {

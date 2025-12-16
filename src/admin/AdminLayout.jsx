@@ -91,6 +91,15 @@ function AdminLayout() {
                             </li>
                             <li>
                                 <NavLink
+                                    to="/admin/database"
+                                    className={({ isActive }) => `admin-nav-link ${isActive ? 'active' : ''}`}
+                                >
+                                    <span>🗄️</span>
+                                    <span>ডাটাবেস</span>
+                                </NavLink>
+                            </li>
+                            <li>
+                                <NavLink
                                     to="/admin/profile"
                                     className={({ isActive }) => `admin-nav-link ${isActive ? 'active' : ''}`}
                                 >
@@ -98,6 +107,7 @@ function AdminLayout() {
                                     <span>প্রোফাইল</span>
                                 </NavLink>
                             </li>
+
                             <li>
                                 <NavLink
                                     to="/admin/users"

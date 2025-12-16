@@ -19,7 +19,9 @@ import CategoryManager from './admin/pages/CategoryManager';
 import MediaLibrary from './admin/pages/MediaLibrary';
 import AdminSettings from './admin/pages/AdminSettings';
 import DatabaseSettings from './admin/pages/DatabaseSettings';
+import RssSettings from './admin/pages/RssSettings';
 import Profile from './admin/pages/Profile';
+
 import UserManagement from './admin/pages/UserManagement';
 
 import './index.css';
@@ -88,7 +90,9 @@ function App() {
               <Route path="media" element={<MediaLibrary />} />
               <Route path="settings" element={<AdminSettings />} />
               <Route path="database" element={<DatabaseSettings />} />
+              <Route path="rss" element={<RssSettings />} />
               <Route path="profile" element={<Profile />} />
+
               <Route path="users" element={<UserManagement />} />
             </Route>
           </Routes>

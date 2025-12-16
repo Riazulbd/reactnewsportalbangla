@@ -100,6 +100,16 @@ function AdminLayout() {
                             </li>
                             <li>
                                 <NavLink
+                                    to="/admin/rss"
+                                    className={({ isActive }) => `admin-nav-link ${isActive ? 'active' : ''}`}
+                                >
+                                    <span>📡</span>
+                                    <span>RSS ফিড</span>
+                                </NavLink>
+                            </li>
+                            <li>
+
+                                <NavLink
                                     to="/admin/profile"
                                     className={({ isActive }) => `admin-nav-link ${isActive ? 'active' : ''}`}
                                 >

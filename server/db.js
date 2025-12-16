@@ -156,7 +156,25 @@ const initDB = async (retries = 10, delay = 3000) => {
                     url TEXT,
                     created_at TIMESTAMP DEFAULT NOW()
                 );
+
+                -- RSS Feeds table
+                CREATE TABLE IF NOT EXISTS rss_feeds (
+                    id SERIAL PRIMARY KEY,
+                    url TEXT NOT NULL,
+                    name VARCHAR(255),
+                    category VARCHAR(100) DEFAULT 'national',
+                    last_imported TIMESTAMP,
+                    created_at TIMESTAMP DEFAULT NOW()
+                );
+
+                -- Add source columns to articles if not exist
+                DO $$ BEGIN
+                    ALTER TABLE articles ADD COLUMN IF NOT EXISTS source VARCHAR(50);
+                    ALTER TABLE articles ADD COLUMN IF NOT EXISTS source_url TEXT;
+                EXCEPTION WHEN OTHERS THEN NULL;
+                END $$;
             `);
+
 
             console.log('✅ Database tables initialized');
 

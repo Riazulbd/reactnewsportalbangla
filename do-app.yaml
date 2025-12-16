@@ -1,0 +1,33 @@
+name: grammarly-alternative
+region: nyc1
+services:
+  - name: newsportal-api
+    source_dir: server
+    github:
+      repo: Riazulbd/reactnewsportalbangla
+      branch: main
+      deploy_on_push: true
+    http_port: 3001
+    routes:
+      - path: /api
+    envs:
+      - key: BACKEND_PORT
+        value: "3001"
+      - key: DATABASE_URL
+        value: ${DATABASE_URL}
+      - key: JWT_SECRET
+        value: ${JWT_SECRET}
+      - key: DB_ENCRYPTION_KEY
+        value: ${DB_ENCRYPTION_KEY}
+static_sites:
+  - name: newsportal-frontend
+    github:
+      repo: Riazulbd/reactnewsportalbangla
+      branch: main
+      deploy_on_push: true
+    build_command: npm run build
+    output_dir: dist
+    catchall_document: index.html
+    routes:
+      - path: /
+

@@ -1,9 +1,50 @@
 # Deployment Guide
 
-This guide covers how to deploy the News Portal to DigitalOcean, specifically addressing Docker configuration and registry authentication ("Personal Token").
+## 1. DigitalOcean App Platform (Recommended)
+This is likely where you are facing issues. If you see "News Portal Backend API is running!" at your main URL, it means you have deployed the **Backend** to the root URL, covering up the Frontend.
 
-## 1. Quick Fix for Current Deployment
-If you are running this on a DigitalOcean Droplet with the code present:
+You need **TWO Components** in your App:
+
+### Component 1: The Backend (Web Service)
+-   **Source**: Your GitHub Repostory
+-   **Source Directory**: `/server`
+-   **Name**: `newsportal-api` (or similar)
+-   **Type**: **Web Service**
+-   **Environment Variables**:
+    -   `DATABASE_URL`: (Your database connection string)
+    -   `DB_ENCRYPTION_KEY`: (Random string)
+    -   `JWT_SECRET`: (Random string)
+-   **HTTP Port**: `3001`
+-   **Routes**: `/api` (Important! Change this from `/` to `/api`)
+
+### Component 2: The Frontend (Static Site)
+-   **Source**: Your GitHub Repository
+-   **Source Directory**: `/` (Root)
+-   **Name**: `newsportal-frontend`
+-   **Type**: **Static Site**
+-   **Build Command**: `npm run build`
+-   **Output Directory**: `dist`
+-   **Catchall Document**: `index.html` (Critical for React Router!)
+-   **Routes**: `/` (Root)
+
+
+**Result**:
+-   Frontend loads at `https://your-app.ondigitalocean.app/`
+-   Backend API is available at `https://your-app.ondigitalocean.app/api/`
+
+### Automatic Fix (Using `do-app.yaml`)
+I have created a file called `do-app.yaml` in your project. You can use this to automatically configure everything:
+1.  Go to your App in DigitalOcean.
+2.  Click **Settings**.
+3.  Click **App Spec**.
+4.  Copy the content of `do-app.yaml` and paste it there (or upload it).
+5.  Click **Save**.
+
+
+---
+
+## 2. Docker Compose (Droplet / VPS)
+If you are running on a server with Docker Compose:
 
 1.  **Pull the latest code changes:**
     ```bash
@@ -19,44 +60,20 @@ If you are running this on a DigitalOcean Droplet with the code present:
     ```
     *Note: We removed an invalid `config.json` volume mount that was likely causing the backend to crash.*
 
-## 2. DigitalOcean App Platform (Recommended)
-If you are deploying via DigitalOcean App Platform (PaaS):
+3.  **Access**:
+    -   Frontend: `http://your-droplet-ip` (Port 80)
+    -   Backend: `http://your-droplet-ip:3001`
 
-1.  Create a **GitHub Repository** for your code if not already done.
-2.  Go to [DigitalOcean Cloud](https://cloud.digitalocean.com/apps).
-3.  Click **Create App**.
-4.  Select **GitHub** as your source and pick your repository.
-5.  DigitalOcean should auto-detect the Dockerfiles.
-    *   **Frontend Service**: Ensure it uses `Dockerfile.frontend`.
-    *   **Backend Service**: Ensure it uses `server/Dockerfile`.
-6.  **Environment Variables**:
-    *   Set them in the App Platform dashboard for the backend service (e.g., `DATABASE_URL` if you have a managed database).
+**If you see the Backend message at port 80**:
+-   Check `nginx.conf` (it should perform the routing).
+-   Ensure you are actually running the containers (`docker ps`).
 
 ## 3. "Docker Personal Token" Explanation
-If you were asked for a "Docker Personal Token" or are strictly using **Docker Hub/GitHub Container Registry (GHCR)**:
+If you were asked for a "Docker Personal Token":
 
-This usually happens if your repository is **Private** or you are exceeding rate limits.
+This happens if your repository is **Private**. DigitalOcean needs permission to pull failure.
 
-### How to generate a Token (for GitHub Registry):
 1.  Go to GitHub -> **Settings** -> **Developer settings**.
 2.  Select **Personal access tokens** -> **Tokens (classic)**.
-3.  Generate new token.
-4.  Select scopes:
-    *   `read:packages` (to download images)
-    *   `write:packages` (to upload images)
-    *   `repo` (if the code is private)
-5.  Copy the token (it starts with `ghp_`).
-
-### How to use it on DigitalOcean (Droplet):
-```bash
-# Log in to GitHub Container Registry
-echo "YOUR_TOKEN" | docker login ghcr.io -u YOUR_GITHUB_USERNAME --password-stdin
-```
-
-Now you can pull images from GHCR.
-
-## Troubleshooting
--   **Frontend not loading:**
-    -   Check if the containers are running: `docker ps`
-    -   Check logs: `docker-compose logs -f`
-    -   Ensure port 80 is open on your Droplet's firewall.
+3.  Generate new token with `read:packages` and `repo` scope.
+4.  Provide this token to DigitalOcean if prompted during App creation.

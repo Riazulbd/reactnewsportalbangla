@@ -166,6 +166,45 @@ router.put('/users/:id', async (req, res) => {
     }
 });
 
+// Change password
+router.put('/password', async (req, res) => {
+    try {
+        const authHeader = req.headers.authorization;
+        if (!authHeader || !authHeader.startsWith('Bearer ')) {
+            return res.status(401).json({ error: 'No token provided' });
+        }
+
+        const token = authHeader.split(' ')[1];
+        const decoded = jwt.verify(token, JWT_SECRET);
+        const userId = decoded.id;
+
+        const { currentPassword, newPassword } = req.body;
+
+        // Get current user password
+        const result = await pool.query('SELECT password FROM users WHERE id = $1', [userId]);
+        if (result.rows.length === 0) {
+            return res.status(404).json({ error: 'User not found' });
+        }
+
+        const user = result.rows[0];
+
+        // Verify current password
+        const validPassword = await bcrypt.compare(currentPassword, user.password);
+        if (!validPassword) {
+            return res.status(400).json({ error: 'বর্তমান পাসওয়ার্ড ভুল' });
+        }
+
+        // Hash new password and update
+        const hashedPassword = await bcrypt.hash(newPassword, 10);
+        await pool.query('UPDATE users SET password = $1 WHERE id = $2', [hashedPassword, userId]);
+
+        res.json({ success: true, message: 'পাসওয়ার্ড পরিবর্তন হয়েছে' });
+    } catch (error) {
+        console.error('Password change error:', error);
+        res.status(500).json({ error: 'Failed to change password' });
+    }
+});
+
 // Delete user
 router.delete('/users/:id', async (req, res) => {
     try {

@@ -60,8 +60,12 @@ const createUploader = async () => {
 
 // Upload single image
 router.post('/', async (req, res) => {
+    console.log('📤 UPLOAD - Request received');
+
     try {
         const maxSize = await getMaxFileSize();
+        console.log('  Max file size:', maxSize / (1024 * 1024), 'MB');
+
         const upload = multer({
             storage,
             fileFilter,
@@ -70,6 +74,7 @@ router.post('/', async (req, res) => {
 
         upload(req, res, async (err) => {
             if (err instanceof multer.MulterError) {
+                console.error('❌ UPLOAD - Multer error:', err.code, err.message);
                 if (err.code === 'LIMIT_FILE_SIZE') {
                     const maxMB = maxSize / (1024 * 1024);
                     return res.status(413).json({
@@ -78,12 +83,20 @@ router.post('/', async (req, res) => {
                 }
                 return res.status(400).json({ error: err.message });
             } else if (err) {
+                console.error('❌ UPLOAD - Error:', err.message);
                 return res.status(400).json({ error: err.message });
             }
 
             if (!req.file) {
+                console.log('⚠️ UPLOAD - No file received');
                 return res.status(400).json({ error: 'কোনো ফাইল আপলোড হয়নি' });
             }
+
+            console.log('✅ UPLOAD - File saved:');
+            console.log('  Filename:', req.file.filename);
+            console.log('  Original:', req.file.originalname);
+            console.log('  Size:', req.file.size, 'bytes');
+            console.log('  Type:', req.file.mimetype);
 
             // Return the file info
             const fileUrl = `/uploads/${req.file.filename}`;
@@ -96,8 +109,8 @@ router.post('/', async (req, res) => {
             });
         });
     } catch (error) {
-        console.error('Upload error:', error);
-        res.status(500).json({ error: 'আপলোড ব্যর্থ হয়েছে' });
+        console.error('❌ UPLOAD - Exception:', error.message);
+        res.status(500).json({ error: 'আপলোড ব্যর্থ হয়েছে: ' + error.message });
     }
 });
 

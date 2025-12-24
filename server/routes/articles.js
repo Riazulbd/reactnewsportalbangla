@@ -60,6 +60,13 @@ router.post('/', async (req, res) => {
             authorAvatar, image, readTime, featured, tags, seo
         } = req.body;
 
+        console.log('📝 CREATE ARTICLE - Request received:');
+        console.log('  Title:', title);
+        console.log('  Slug:', slug);
+        console.log('  Category:', category);
+        console.log('  Has content:', !!content);
+        console.log('  Has image:', !!image);
+
         const result = await pool.query(
             `INSERT INTO articles 
              (title, slug, excerpt, content, category, author, author_avatar, image, read_time, featured, tags, seo)
@@ -67,10 +74,13 @@ router.post('/', async (req, res) => {
              RETURNING *`,
             [title, slug, excerpt, content, category, author, authorAvatar, image, readTime || '৫ মিনিট', featured || false, tags || [], seo || {}]
         );
+
+        console.log('✅ ARTICLE CREATED - ID:', result.rows[0].id);
         res.status(201).json(result.rows[0]);
     } catch (error) {
-        console.error('Error creating article:', error);
-        res.status(500).json({ error: 'Failed to create article' });
+        console.error('❌ ERROR creating article:', error.message);
+        console.error('  Stack:', error.stack);
+        res.status(500).json({ error: 'Failed to create article: ' + error.message });
     }
 });
 
@@ -83,6 +93,11 @@ router.put('/:id', async (req, res) => {
             authorAvatar, image, readTime, featured, tags, seo
         } = req.body;
 
+        console.log('📝 UPDATE ARTICLE - Request received:');
+        console.log('  ID:', id);
+        console.log('  Title:', title);
+        console.log('  Has content:', !!content);
+
         const result = await pool.query(
             `UPDATE articles SET 
              title = $1, slug = $2, excerpt = $3, content = $4, category = $5, 
@@ -93,12 +108,16 @@ router.put('/:id', async (req, res) => {
         );
 
         if (result.rows.length === 0) {
+            console.log('⚠️ Article not found:', id);
             return res.status(404).json({ error: 'Article not found' });
         }
+
+        console.log('✅ ARTICLE UPDATED - ID:', result.rows[0].id);
         res.json(result.rows[0]);
     } catch (error) {
-        console.error('Error updating article:', error);
-        res.status(500).json({ error: 'Failed to update article' });
+        console.error('❌ ERROR updating article:', error.message);
+        console.error('  Stack:', error.stack);
+        res.status(500).json({ error: 'Failed to update article: ' + error.message });
     }
 });
 

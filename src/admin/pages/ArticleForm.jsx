@@ -56,6 +56,8 @@ function ArticleForm() {
     const [isGeneratingSlug, setIsGeneratingSlug] = useState(false);
     const [seoError, setSeoError] = useState('');
     const [uploadingImage, setUploadingImage] = useState(false);
+    const [saveError, setSaveError] = useState('');
+    const [isSaving, setIsSaving] = useState(false);
 
     const [formData, setFormData] = useState({
         title: '',
@@ -205,12 +207,31 @@ function ArticleForm() {
         }
     };
 
-    const handleSubmit = (e) => {
+    const handleSubmit = async (e) => {
         e.preventDefault();
-        const articleData = { ...formData, excerpt: formData.excerpt || formData.content.substring(0, 200) + '...' };
-        if (isEditing) { updateArticle(parseInt(id), articleData); }
-        else { addArticle(articleData); }
-        navigate('/admin/articles');
+        setSaveError('');
+        setIsSaving(true);
+
+        try {
+            const articleData = { ...formData, excerpt: formData.excerpt || formData.content.substring(0, 200) + '...' };
+
+            console.log('📝 Submitting article:', isEditing ? 'UPDATE' : 'CREATE');
+
+            if (isEditing) {
+                await updateArticle(parseInt(id), articleData);
+                console.log('✅ Article updated successfully');
+            } else {
+                await addArticle(articleData);
+                console.log('✅ Article created successfully');
+            }
+
+            navigate('/admin/articles');
+        } catch (error) {
+            console.error('❌ Article save failed:', error);
+            setSaveError(error.message || 'প্রবন্ধ সেভ করতে সমস্যা হয়েছে। আবার চেষ্টা করুন।');
+        } finally {
+            setIsSaving(false);
+        }
     };
 
     const filteredMedia = mediaSearch ? searchMedia(mediaSearch) : mediaLibrary;
@@ -402,8 +423,23 @@ function ArticleForm() {
                         </>
                     )}
 
+                    {saveError && (
+                        <div style={{
+                            padding: 'var(--space-md)',
+                            background: 'rgba(239, 68, 68, 0.2)',
+                            border: '1px solid #ef4444',
+                            borderRadius: 'var(--radius-md)',
+                            color: '#ef4444',
+                            marginTop: 'var(--space-md)'
+                        }}>
+                            ⚠️ {saveError}
+                        </div>
+                    )}
+
                     <div style={{ display: 'flex', gap: 'var(--space-md)', marginTop: 'var(--space-lg)' }}>
-                        <button type="submit" className="admin-btn admin-btn-primary">{isEditing ? '💾 আপডেট করুন' : '➕ প্রবন্ধ যোগ করুন'}</button>
+                        <button type="submit" className="admin-btn admin-btn-primary" disabled={isSaving}>
+                            {isSaving ? '⏳ সেভ হচ্ছে...' : (isEditing ? '💾 আপডেট করুন' : '➕ প্রবন্ধ যোগ করুন')}
+                        </button>
                         <Link to="/admin/articles" className="admin-btn admin-btn-secondary">বাতিল</Link>
                     </div>
                 </form>

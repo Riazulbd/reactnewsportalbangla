@@ -64,6 +64,15 @@ function AdminLayout() {
                             </li>
                             <li>
                                 <NavLink
+                                    to="/admin/writers"
+                                    className={({ isActive }) => `admin-nav-link ${isActive ? 'active' : ''}`}
+                                >
+                                    <span>✍️</span>
+                                    <span>লেখক</span>
+                                </NavLink>
+                            </li>
+                            <li>
+                                <NavLink
                                     to="/admin/categories"
                                     className={({ isActive }) => `admin-nav-link ${isActive ? 'active' : ''}`}
                                 >

@@ -317,3 +317,107 @@
         grid-template-columns: 1fr;
     }
 }
+
+/* Writer Section */
+.writer-section {
+    margin-top: var(--space-2xl);
+    padding: var(--space-xl);
+    background: linear-gradient(135deg, var(--color-bg-card) 0%, var(--color-bg-tertiary) 100%);
+    border-radius: var(--radius-lg);
+    border: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+.writer-section-header {
+    margin-bottom: var(--space-lg);
+    padding-bottom: var(--space-md);
+    border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.writer-section-header h3 {
+    font-family: var(--font-display);
+    font-size: var(--text-lg);
+    font-weight: 600;
+    color: var(--color-text-primary);
+    display: flex;
+    align-items: center;
+    gap: var(--space-sm);
+}
+
+.writer-section-header h3::before {
+    content: '✍️';
+}
+
+.writer-section-content {
+    display: flex;
+    gap: var(--space-lg);
+    align-items: flex-start;
+}
+
+.writer-avatar {
+    flex-shrink: 0;
+}
+
+.writer-avatar img {
+    width: 100px;
+    height: 100px;
+    border-radius: var(--radius-full);
+    object-fit: cover;
+    border: 3px solid var(--color-accent-primary);
+}
+
+.writer-avatar-placeholder {
+    width: 100px;
+    height: 100px;
+    border-radius: var(--radius-full);
+    background: var(--gradient-primary);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: var(--text-3xl);
+    font-weight: 700;
+    color: white;
+}
+
+.writer-info {
+    flex: 1;
+}
+
+.writer-name {
+    font-family: var(--font-display);
+    font-size: var(--text-xl);
+    font-weight: 700;
+    color: var(--color-text-primary);
+    margin-bottom: var(--space-sm);
+}
+
+.writer-description {
+    font-size: var(--text-sm);
+    line-height: 1.7;
+    color: var(--color-text-secondary);
+}
+
+.writer-description p {
+    margin-bottom: var(--space-sm);
+}
+
+.writer-description p:last-child {
+    margin-bottom: 0;
+}
+
+.writer-description strong {
+    color: var(--color-text-primary);
+}
+
+@media (max-width: 768px) {
+    .writer-section-content {
+        flex-direction: column;
+        align-items: center;
+        text-align: center;
+    }
+
+    .writer-avatar img,
+    .writer-avatar-placeholder {
+        width: 80px;
+        height: 80px;
+    }
+}

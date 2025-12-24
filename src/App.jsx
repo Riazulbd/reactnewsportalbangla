@@ -21,6 +21,7 @@ import AdminSettings from './admin/pages/AdminSettings';
 import DatabaseSettings from './admin/pages/DatabaseSettings';
 import RssSettings from './admin/pages/RssSettings';
 import Profile from './admin/pages/Profile';
+import WritersPage from './admin/pages/WritersPage';
 
 import UserManagement from './admin/pages/UserManagement';
 
@@ -92,6 +93,7 @@ function App() {
               <Route path="database" element={<DatabaseSettings />} />
               <Route path="rss" element={<RssSettings />} />
               <Route path="profile" element={<Profile />} />
+              <Route path="writers" element={<WritersPage />} />
 
               <Route path="users" element={<UserManagement />} />
             </Route>

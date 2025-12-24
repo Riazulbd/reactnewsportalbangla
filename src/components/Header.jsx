@@ -9,28 +9,46 @@ function Header() {
     const [searchQuery, setSearchQuery] = useState('');
     const [isScrolled, setIsScrolled] = useState(false);
     const [currentDate, setCurrentDate] = useState('');
+    const [currentTime, setCurrentTime] = useState('');
     const navigate = useNavigate();
 
     const { getMainCategories, getSubcategories, theme, toggleTheme, settings } = useData();
     const mainCategories = getMainCategories();
 
-    // Bengali date format
+    // Bengali date and time format
     useEffect(() => {
-        const formatBengaliDate = () => {
+        const bengaliNumerals = ['০', '১', '২', '৩', '৪', '৫', '৬', '৭', '৮', '৯'];
+
+        const toBengaliNumber = (num) => {
+            return String(num).split('').map(d => bengaliNumerals[parseInt(d)]).join('');
+        };
+
+        const formatBengaliDateTime = () => {
             const days = ['রবিবার', 'সোমবার', 'মঙ্গলবার', 'বুধবার', 'বৃহস্পতিবার', 'শুক্রবার', 'শনিবার'];
             const months = ['জানুয়ারি', 'ফেব্রুয়ারি', 'মার্চ', 'এপ্রিল', 'মে', 'জুন', 'জুলাই', 'আগস্ট', 'সেপ্টেম্বর', 'অক্টোবর', 'নভেম্বর', 'ডিসেম্বর'];
-            const bengaliNumerals = ['০', '১', '২', '৩', '৪', '৫', '৬', '৭', '৮', '৯'];
 
             const now = new Date();
             const dayName = days[now.getDay()];
-            const day = String(now.getDate()).split('').map(d => bengaliNumerals[parseInt(d)]).join('');
+            const day = toBengaliNumber(now.getDate());
             const month = months[now.getMonth()];
-            const year = String(now.getFullYear()).split('').map(d => bengaliNumerals[parseInt(d)]).join('');
+            const year = toBengaliNumber(now.getFullYear());
+
+            // Format time in 12-hour format
+            let hours = now.getHours();
+            const minutes = now.getMinutes();
+            const ampm = hours >= 12 ? 'PM' : 'AM';
+            hours = hours % 12;
+            hours = hours ? hours : 12; // 0 = 12
+            const timeStr = `${toBengaliNumber(hours)}:${toBengaliNumber(minutes.toString().padStart(2, '0'))} ${ampm}`;
 
             setCurrentDate(`${dayName}, ${day} ${month}, ${year}`);
+            setCurrentTime(timeStr);
         };
 
-        formatBengaliDate();
+        formatBengaliDateTime();
+        // Update time every minute
+        const interval = setInterval(formatBengaliDateTime, 60000);
+        return () => clearInterval(interval);
     }, []);
 
     useEffect(() => {
@@ -75,7 +93,7 @@ function Header() {
                             </a>
                         </div>
                     </div>
-                    <div className="topbar-date">{currentDate}</div>
+                    <div className="topbar-date">{currentDate} | {currentTime}</div>
                     <div className="topbar-right">
                         <button
                             className="topbar-theme-btn"
@@ -101,14 +119,6 @@ function Header() {
                             </div>
                         )}
                     </Link>
-                    <div className="logo-actions">
-                        <Link to="/admin" className="logo-action-btn">
-                            📰 ই-পেপার
-                        </Link>
-                        <Link to="/video" className="logo-action-btn">
-                            🎥 ভিডিও
-                        </Link>
-                    </div>
                 </div>
             </div>
 
@@ -127,7 +137,7 @@ function Header() {
                             return (
                                 <div key={cat.id} className="nav-item-wrapper">
                                     <NavLink
-                                        to={`/category/${cat.id}`}
+                                        to={`/category/${cat.slug || cat.id}`}
                                         className={({ isActive }) => `nav-link ${isActive ? 'active' : ''}`}
                                     >
                                         {cat.name}
@@ -138,7 +148,7 @@ function Header() {
                                             {subcategories.map(sub => (
                                                 <NavLink
                                                     key={sub.id}
-                                                    to={`/category/${sub.id}`}
+                                                    to={`/category/${sub.slug || sub.id}`}
                                                     className="nav-dropdown-link"
                                                 >
                                                     {sub.name}
@@ -158,7 +168,7 @@ function Header() {
                                     {mainCategories.slice(7).map(cat => (
                                         <NavLink
                                             key={cat.id}
-                                            to={`/category/${cat.id}`}
+                                            to={`/category/${cat.slug || cat.id}`}
                                             className="nav-dropdown-link"
                                         >
                                             {cat.name}
@@ -207,7 +217,7 @@ function Header() {
                     <NavLink to="/" onClick={() => setIsMenuOpen(false)}>🏠 প্রচ্ছদ</NavLink>
                     <NavLink to="/latest" onClick={() => setIsMenuOpen(false)}>📰 সর্বশেষ</NavLink>
                     {mainCategories.map((cat) => (
-                        <NavLink key={cat.id} to={`/category/${cat.id}`} onClick={() => setIsMenuOpen(false)}>
+                        <NavLink key={cat.id} to={`/category/${cat.slug || cat.id}`} onClick={() => setIsMenuOpen(false)}>
                             {cat.name}
                         </NavLink>
                     ))}

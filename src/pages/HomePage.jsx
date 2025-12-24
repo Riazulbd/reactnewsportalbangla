@@ -2,7 +2,7 @@ import { useState, useEffect, useRef, useCallback } from 'react';
 import { Link } from 'react-router-dom';
 import { useData } from '../admin/DataContext';
 import ArticleCard from '../components/ArticleCard';
-import BreakingNews from '../components/BreakingNews';
+
 import './HomePage.css';
 
 function HomePage() {
@@ -19,8 +19,8 @@ function HomePage() {
     const featuredArticles = getFeaturedArticles();
     const mainCategories = getMainCategories();
 
-    // Configurable slider interval from settings (default 5 seconds)
-    const sliderInterval = settings?.sliderInterval || 5000;
+    // Configurable slider interval from settings (default 3 seconds)
+    const sliderInterval = settings?.sliderInterval || 3000;
 
     // Auto-slide with configurable interval and pause-on-hover
     useEffect(() => {
@@ -91,7 +91,7 @@ function HomePage() {
 
     return (
         <div className="home-page">
-            <BreakingNews />
+
 
             <main className="container">
                 {/* Featured Slider */}

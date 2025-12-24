@@ -1,5 +1,6 @@
 import { createContext, useContext, useState, useEffect, useCallback } from 'react';
 import { articlesApi, categoriesApi, settingsApi, authApi } from '../services/api';
+import { articles as mockArticles, categories as mockCategories } from '../data/articles';
 
 const DataContext = createContext();
 
@@ -37,6 +38,32 @@ export function DataProvider({ children }) {
     const [categories, setCategories] = useState(PREDEFINED_CATEGORIES);
     const [mediaLibrary, setMediaLibrary] = useState([]);
     const [users, setUsers] = useState([]);
+    const [writers, setWriters] = useState([
+        {
+            id: 1,
+            name: 'সারাহ মিচেল',
+            image_url: 'https://i.pravatar.cc/150?img=1',
+            description: '<p><strong>সারাহ মিচেল</strong> একজন অভিজ্ঞ সাংবাদিক যিনি গত ১০ বছর ধরে পরিবেশ ও জলবায়ু বিষয়ে রিপোর্ট করছেন।</p><p>তিনি বিভিন্ন আন্তর্জাতিক সম্মেলনে অংশ নিয়েছেন এবং জলবায়ু পরিবর্তনের বিষয়ে গভীর জ্ঞান রাখেন।</p>',
+            is_visible: true,
+            created_at: '2025-01-15'
+        },
+        {
+            id: 2,
+            name: 'মাইক জনসন',
+            image_url: 'https://i.pravatar.cc/150?img=3',
+            description: '<p><strong>মাইক জনসন</strong> একজন ক্রীড়া সাংবাদিক। তিনি ফুটবল, ক্রিকেট এবং অলিম্পিক গেমস কভার করেন।</p>',
+            is_visible: true,
+            created_at: '2025-02-20'
+        },
+        {
+            id: 3,
+            name: 'ড. এমিলি চেন',
+            image_url: 'https://i.pravatar.cc/150?img=5',
+            description: '<p><strong>ড. এমিলি চেন</strong> প্রযুক্তি ও কৃত্রিম বুদ্ধিমত্তা বিষয়ে বিশেষজ্ঞ লেখক।</p>',
+            is_visible: false,
+            created_at: '2025-03-10'
+        }
+    ]);
     const [settings, setSettings] = useState({
         heroArticleId: null,
         featuredArticleIds: [],
@@ -65,8 +92,28 @@ export function DataProvider({ children }) {
             setApiAvailable(available);
 
             if (!available) {
-                // API not available - show error (no localStorage fallback)
-                setError('API সার্ভার চালু নেই। অনুগ্রহ করে Backend সার্ভার চালু করুন।');
+                // API not available - use local mock data for demo/testing
+                console.log('API not available, using local mock data');
+
+                // Transform mock articles to match expected format
+                const transformedArticles = mockArticles.map(a => ({
+                    ...a,
+                    created_at: a.date,
+                    read_time: a.readTime,
+                    author_avatar: a.authorAvatar
+                }));
+
+                // Transform mock categories to match expected format
+                const transformedCategories = mockCategories.map((c, i) => ({
+                    id: i + 1,
+                    name: c.name,
+                    slug: c.id,
+                    color: c.color,
+                    order_index: i
+                }));
+
+                setArticles(transformedArticles);
+                setCategories(transformedCategories);
                 setLoading(false);
                 return;
             }
@@ -396,6 +443,35 @@ export function DataProvider({ children }) {
         return true;
     }, [apiAvailable]);
 
+    // ===================== WRITERS CRUD (Local State) =====================
+    const addWriter = useCallback((writer) => {
+        const newWriter = {
+            ...writer,
+            id: Date.now(),
+            created_at: new Date().toISOString().split('T')[0]
+        };
+        setWriters(prev => [...prev, newWriter]);
+        return newWriter;
+    }, []);
+
+    const updateWriter = useCallback((id, updates) => {
+        setWriters(prev => prev.map(w =>
+            w.id === id ? { ...w, ...updates } : w
+        ));
+    }, []);
+
+    const deleteWriter = useCallback((id) => {
+        setWriters(prev => prev.filter(w => w.id !== id));
+    }, []);
+
+    const getWriterById = useCallback((id) => {
+        return writers.find(w => w.id === id || w.id === parseInt(id));
+    }, [writers]);
+
+    const getVisibleWriters = useCallback(() => {
+        return writers.filter(w => w.is_visible !== false);
+    }, [writers]);
+
     // Refresh data
     const refreshData = useCallback(async () => {
         if (!apiAvailable) return;
@@ -471,6 +547,14 @@ export function DataProvider({ children }) {
 
         // Refresh
         refreshData,
+
+        // Writers
+        writers,
+        addWriter,
+        updateWriter,
+        deleteWriter,
+        getWriterById,
+        getVisibleWriters,
     };
 
     return (

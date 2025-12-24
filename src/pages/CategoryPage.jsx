@@ -7,7 +7,12 @@ function CategoryPage() {
     const { categoryId } = useParams();
     const { categories, getArticlesByCategory, getSubcategories } = useData();
 
-    const category = categories.find((c) => c.id === categoryId);
+    // Match by id, slug, or string representation of id
+    const category = categories.find((c) =>
+        c.id === categoryId ||
+        c.slug === categoryId ||
+        String(c.id) === categoryId
+    );
     const articles = getArticlesByCategory(categoryId);
     const subcategories = getSubcategories(categoryId);
 

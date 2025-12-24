@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef, useMemo } from 'react';
 import { useParams, useNavigate, Link } from 'react-router-dom';
 import { useData } from '../DataContext';
+import RichTextEditor from '../../components/RichTextEditor';
 import '../admin.css';
 
 // SEO Score Gauge Component
@@ -43,9 +44,9 @@ function ArticleForm() {
     const navigate = useNavigate();
     const fileInputRef = useRef(null);
     const {
-        articles, categories, mediaLibrary, settings,
+        articles, categories, mediaLibrary, settings, writers,
         addArticle, updateArticle, searchMedia, addMedia,
-        generateSlug, generateSlugWithAI, generateSEOWithAI
+        generateSlug, generateSlugWithAI, generateSEOWithAI, getVisibleWriters
     } = useData();
     const isEditing = Boolean(id);
     const [showMediaModal, setShowMediaModal] = useState(false);
@@ -68,6 +69,8 @@ function ArticleForm() {
         readTime: '৫ মিনিট',
         featured: false,
         tags: [],
+        writer_id: '',
+        show_writer: true,
         seo: {
             metaTitle: '',
             metaDescription: '',
@@ -109,6 +112,8 @@ function ArticleForm() {
                     readTime: article.readTime || '৫ মিনিট',
                     featured: article.featured || false,
                     tags: article.tags || [],
+                    writer_id: article.writer_id || '',
+                    show_writer: article.show_writer !== false,
                     seo: article.seo || { metaTitle: '', metaDescription: '', keywords: '', canonical: '', googleNewsKeywords: '' },
                 });
             }
@@ -253,27 +258,14 @@ function ArticleForm() {
                                 <textarea name="excerpt" className="admin-form-textarea" placeholder="প্রবন্ধের সংক্ষিপ্ত বিবরণ" value={formData.excerpt} onChange={handleChange} style={{ minHeight: '80px' }} />
                             </div>
 
-                            {/* Content Editor - Plain Textarea */}
+                            {/* Content Editor - RichTextEditor */}
                             <div className="admin-form-group">
                                 <label className="admin-form-label">বিস্তারিত *</label>
-                                <textarea
-                                    name="content"
-                                    className="admin-form-textarea"
-                                    placeholder="প্রবন্ধের পূর্ণ বিষয়বস্তু লিখুন...
-
-আপনি HTML ব্যবহার করতে পারেন:
-<b>বোল্ড</b>, <i>ইটালিক</i>, <a href='url'>লিংক</a>
-<img src='url' alt='ছবি'>
-<h2>হেডিং</h2>
-<ul><li>লিস্ট</li></ul>"
-                                    value={formData.content}
-                                    onChange={handleChange}
-                                    style={{ minHeight: '300px', fontFamily: 'inherit', lineHeight: '1.6' }}
-                                    required
+                                <RichTextEditor
+                                    content={formData.content}
+                                    onChange={(html) => setFormData(prev => ({ ...prev, content: html }))}
+                                    placeholder="প্রবন্ধের পূর্ণ বিষয়বস্তু লিখুন..."
                                 />
-                                <small style={{ color: 'var(--color-text-muted)', marginTop: 'var(--space-sm)', display: 'block' }}>
-                                    💡 HTML সাপোর্টেড: &lt;b&gt;, &lt;i&gt;, &lt;a&gt;, &lt;img&gt;, &lt;h2&gt;, &lt;ul&gt;, &lt;li&gt;
-                                </small>
                             </div>
 
                             <div className="admin-form-row">
@@ -287,6 +279,41 @@ function ArticleForm() {
                                 <div className="admin-form-group">
                                     <label className="admin-form-label">লেখক *</label>
                                     <input type="text" name="author" className="admin-form-input" placeholder="লেখকের নাম" value={formData.author} onChange={handleChange} required />
+                                </div>
+                            </div>
+
+                            {/* Writer Selection */}
+                            <div className="admin-form-row">
+                                <div className="admin-form-group">
+                                    <label className="admin-form-label">প্রবন্ধ লেখক</label>
+                                    <select name="writer_id" className="admin-form-select" value={formData.writer_id} onChange={handleChange}>
+                                        <option value="">লেখক নির্বাচন করুন (ঐচ্ছিক)</option>
+                                        {writers?.map(w => (
+                                            <option key={w.id} value={w.id}>
+                                                {w.name} {!w.is_visible ? '(লুকানো)' : ''}
+                                            </option>
+                                        ))}
+                                    </select>
+                                    <small style={{ color: 'var(--color-text-muted)' }}>
+                                        লেখক নির্বাচন করলে প্রবন্ধে তাদের বিবরণ দেখানো হবে
+                                    </small>
+                                </div>
+                                <div className="admin-form-group">
+                                    <label className="admin-form-label">লেখক দেখান</label>
+                                    <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-md)', paddingTop: 'var(--space-sm)' }}>
+                                        <label className="toggle-switch">
+                                            <input
+                                                type="checkbox"
+                                                name="show_writer"
+                                                checked={formData.show_writer}
+                                                onChange={handleChange}
+                                            />
+                                            <span className="toggle-slider"></span>
+                                        </label>
+                                        <span style={{ color: 'var(--color-text-secondary)' }}>
+                                            {formData.show_writer ? '✅ লেখক দেখানো হবে' : '🚫 লেখক লুকানো থাকবে'}
+                                        </span>
+                                    </div>
                                 </div>
                             </div>
 

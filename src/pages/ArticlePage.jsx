@@ -6,8 +6,12 @@ import './ArticlePage.css';
 
 function ArticlePage() {
     const { id } = useParams();
-    const { articles, categories, getArticleById } = useData();
+    const { articles, categories, getArticleById, getWriterById } = useData();
     const article = getArticleById(id);
+
+    // Get writer if article has one and show_writer is enabled
+    const writer = article?.writer_id ? getWriterById(article.writer_id) : null;
+    const shouldShowWriter = article?.show_writer !== false && writer?.is_visible !== false;
 
     // Scroll to top when article changes
     useEffect(() => {
@@ -192,17 +196,49 @@ function ArticlePage() {
                         </div>
                     </div>
 
-                    <div className="author-bio">
-                        <img src={article.authorAvatar} alt={article.author} className="author-bio-avatar" />
-                        <div className="author-bio-content">
-                            <h4>{article.author}</h4>
-                            <p>
-                                ১৫ বছরেরও বেশি অভিজ্ঞতাসম্পন্ন পুরস্কারপ্রাপ্ত সাংবাদিক,
-                                {' '}{category?.name} সংবাদ কভার করছেন। গভীর বিশ্লেষণ এবং
-                                অনুসন্ধানী প্রতিবেদনের জন্য পরিচিত।
-                            </p>
+                    {/* Writer Section - Shows when article has writer and visibility is enabled */}
+                    {shouldShowWriter && writer && (
+                        <div className="writer-section">
+                            <div className="writer-section-header">
+                                <h3>লেখক সম্পর্কে</h3>
+                            </div>
+                            <div className="writer-section-content">
+                                <div className="writer-avatar">
+                                    {writer.image_url ? (
+                                        <img src={writer.image_url} alt={writer.name} />
+                                    ) : (
+                                        <div className="writer-avatar-placeholder">
+                                            {writer.name.charAt(0)}
+                                        </div>
+                                    )}
+                                </div>
+                                <div className="writer-info">
+                                    <h4 className="writer-name">{writer.name}</h4>
+                                    {writer.description && (
+                                        <div
+                                            className="writer-description"
+                                            dangerouslySetInnerHTML={{ __html: writer.description }}
+                                        />
+                                    )}
+                                </div>
+                            </div>
                         </div>
-                    </div>
+                    )}
+
+                    {/* Fallback author bio when no writer is assigned */}
+                    {!shouldShowWriter && (
+                        <div className="author-bio">
+                            <img src={article.authorAvatar} alt={article.author} className="author-bio-avatar" />
+                            <div className="author-bio-content">
+                                <h4>{article.author}</h4>
+                                <p>
+                                    ১৫ বছরেরও বেশি অভিজ্ঞতাসম্পন্ন পুরস্কারপ্রাপ্ত সাংবাদিক,
+                                    {' '}{category?.name} সংবাদ কভার করছেন। গভীর বিশ্লেষণ এবং
+                                    অনুসন্ধানী প্রতিবেদনের জন্য পরিচিত।
+                                </p>
+                            </div>
+                        </div>
+                    )}
                 </div>
 
                 {relatedArticles.length > 0 && (

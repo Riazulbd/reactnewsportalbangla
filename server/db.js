@@ -46,8 +46,18 @@ function loadSavedConfig() {
 function getConnectionString() {
     // Priority 1: Environment variable
     if (process.env.DATABASE_URL) {
-        console.log('📊 Using DATABASE_URL from environment');
-        return process.env.DATABASE_URL;
+        const url = process.env.DATABASE_URL;
+        // Log safely without exposing password
+        try {
+            const parsed = new URL(url);
+            console.log('📊 Using DATABASE_URL from environment');
+            console.log('  Host:', parsed.hostname);
+            console.log('  Port:', parsed.port || '5432');
+            console.log('  Database:', parsed.pathname?.slice(1) || 'unknown');
+        } catch {
+            console.log('📊 Using DATABASE_URL from environment (could not parse for logging)');
+        }
+        return url;
     }
 
     // Priority 2: Saved config.json

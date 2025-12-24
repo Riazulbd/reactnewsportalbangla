@@ -3,12 +3,20 @@ const fs = require('fs');
 const path = require('path');
 const crypto = require('crypto');
 
-// Derive a 32-byte key from any input using SHA-256 (must match database.js)
+// ============================================================
+// DATABASE CONNECTION - PROVIDER-AGNOSTIC, FAIL-SAFE
+// Supports: Supabase, Neon, Railway, DigitalOcean, AWS, Local
+// ============================================================
+
+// Encryption key for stored credentials
 const RAW_KEY = process.env.DB_ENCRYPTION_KEY || 'newsportal-secure-key-default';
 const ENCRYPTION_KEY = crypto.createHash('sha256').update(RAW_KEY).digest();
 const IV_LENGTH = 16;
 
-// Decrypt function
+// Invalid hostnames that should never be used
+const INVALID_HOSTNAMES = ['base', 'hostname', 'host', 'example.com', 'your-host', 'your-db-host'];
+
+// Decrypt function for stored passwords
 function decrypt(text) {
     try {
         const textParts = text.split(':');
@@ -24,8 +32,7 @@ function decrypt(text) {
     }
 }
 
-
-// Load saved config from config.json
+// Load saved config from config.json (for admin UI database settings)
 function loadSavedConfig() {
     const configPath = path.join(__dirname, 'config.json');
     try {
@@ -37,77 +44,228 @@ function loadSavedConfig() {
             return config;
         }
     } catch (err) {
-        console.error('Error loading saved DB config:', err.message);
+        console.error('⚠️ Error loading saved DB config:', err.message);
     }
     return null;
 }
 
-// Build connection string from saved config
-function getConnectionString() {
-    // Priority 1: Environment variable
-    if (process.env.DATABASE_URL) {
-        const url = process.env.DATABASE_URL;
-        // Log safely without exposing password
-        try {
-            const parsed = new URL(url);
-            console.log('📊 Using DATABASE_URL from environment');
-            console.log('  Host:', parsed.hostname);
-            console.log('  Port:', parsed.port || '5432');
-            console.log('  Database:', parsed.pathname?.slice(1) || 'unknown');
-        } catch {
-            console.log('📊 Using DATABASE_URL from environment (could not parse for logging)');
+// Validate a database URL and return parsed components
+function validateDatabaseUrl(url) {
+    if (!url || typeof url !== 'string' || url.trim() === '') {
+        return { valid: false, error: 'DATABASE_URL is empty or not set' };
+    }
+
+    try {
+        const parsed = new URL(url);
+
+        // Check protocol
+        if (!['postgres:', 'postgresql:'].includes(parsed.protocol)) {
+            return { valid: false, error: `Unsupported protocol: ${parsed.protocol}. Expected postgres:// or postgresql://` };
         }
-        return url;
-    }
 
-    // Priority 2: Saved config.json
-    const savedConfig = loadSavedConfig();
-    if (savedConfig && savedConfig.host && savedConfig.password) {
-        console.log('📊 Using saved database configuration from config.json');
-        const { host, port, database, username, password } = savedConfig;
-        return `postgres://${username}:${encodeURIComponent(password)}@${host}:${port}/${database}`;
-    }
+        // Check hostname
+        if (!parsed.hostname || parsed.hostname.trim() === '') {
+            return { valid: false, error: 'DATABASE_URL hostname is missing' };
+        }
 
-    // Priority 3: Default local database
-    console.log('📊 No database configured. Using local default.');
-    return 'postgres://admin:secret123@localhost:5432/newsportal';
+        // Check for invalid placeholder hostnames
+        const hostname = parsed.hostname.toLowerCase();
+        if (INVALID_HOSTNAMES.includes(hostname)) {
+            return {
+                valid: false,
+                error: `DATABASE_URL contains placeholder hostname "${hostname}". Please set a real database host.`
+            };
+        }
+
+        // Check for localhost in production (warning, not error)
+        const isProduction = process.env.NODE_ENV === 'production';
+        if (isProduction && (hostname === 'localhost' || hostname === '127.0.0.1')) {
+            console.warn('⚠️ WARNING: Using localhost database in production environment');
+        }
+
+        // Validate port if specified
+        if (parsed.port && (parseInt(parsed.port) < 1 || parseInt(parsed.port) > 65535)) {
+            return { valid: false, error: `Invalid port: ${parsed.port}` };
+        }
+
+        return {
+            valid: true,
+            hostname: parsed.hostname,
+            port: parsed.port || '5432',
+            database: parsed.pathname?.slice(1) || 'postgres',
+            username: parsed.username || 'postgres',
+            hasPassword: !!parsed.password
+        };
+    } catch (err) {
+        return { valid: false, error: `Failed to parse DATABASE_URL: ${err.message}` };
+    }
 }
 
-// Get SSL config from saved config
-function getSSLConfig() {
+// Build connection configuration from individual env vars
+function buildFromEnvVars() {
+    const host = process.env.DB_HOST;
+    const port = process.env.DB_PORT || '5432';
+    const database = process.env.DB_NAME || process.env.DB_DATABASE || 'postgres';
+    const username = process.env.DB_USER || process.env.DB_USERNAME || 'postgres';
+    const password = process.env.DB_PASSWORD;
+
+    if (!host) {
+        return { valid: false, error: 'DB_HOST environment variable is not set' };
+    }
+
+    if (INVALID_HOSTNAMES.includes(host.toLowerCase())) {
+        return { valid: false, error: `DB_HOST contains placeholder value "${host}". Please set a real database host.` };
+    }
+
+    if (!password) {
+        return { valid: false, error: 'DB_PASSWORD environment variable is not set' };
+    }
+
+    return {
+        valid: true,
+        connectionString: `postgres://${username}:${encodeURIComponent(password)}@${host}:${port}/${database}`,
+        hostname: host,
+        port,
+        database
+    };
+}
+
+// Get database connection configuration with strict validation
+function getConnectionConfig() {
+    console.log('📊 Initializing database connection...');
+
+    // Priority 1: DATABASE_URL environment variable
+    if (process.env.DATABASE_URL) {
+        const validation = validateDatabaseUrl(process.env.DATABASE_URL);
+
+        if (!validation.valid) {
+            console.error('❌ DATABASE_URL VALIDATION FAILED:', validation.error);
+            throw new Error(`Database configuration error: ${validation.error}`);
+        }
+
+        console.log('✅ Using DATABASE_URL from environment');
+        console.log('  Host:', validation.hostname);
+        console.log('  Port:', validation.port);
+        console.log('  Database:', validation.database);
+
+        return {
+            connectionString: process.env.DATABASE_URL,
+            hostname: validation.hostname
+        };
+    }
+
+    // Priority 2: Individual DB_* environment variables
+    if (process.env.DB_HOST) {
+        const config = buildFromEnvVars();
+
+        if (!config.valid) {
+            console.error('❌ DB ENV VARS VALIDATION FAILED:', config.error);
+            throw new Error(`Database configuration error: ${config.error}`);
+        }
+
+        console.log('✅ Using individual DB_* environment variables');
+        console.log('  Host:', config.hostname);
+        console.log('  Port:', config.port);
+        console.log('  Database:', config.database);
+
+        return {
+            connectionString: config.connectionString,
+            hostname: config.hostname
+        };
+    }
+
+    // Priority 3: Saved config.json (from admin UI)
     const savedConfig = loadSavedConfig();
-    if (savedConfig && savedConfig.sslMode) {
+    if (savedConfig && savedConfig.host && savedConfig.password) {
+        if (INVALID_HOSTNAMES.includes(savedConfig.host.toLowerCase())) {
+            console.error('❌ SAVED CONFIG VALIDATION FAILED: Invalid hostname in config.json');
+            throw new Error(`Database configuration error: config.json contains placeholder hostname "${savedConfig.host}"`);
+        }
+
+        console.log('✅ Using saved database configuration from config.json');
+        console.log('  Host:', savedConfig.host);
+        console.log('  Port:', savedConfig.port || 5432);
+        console.log('  Database:', savedConfig.database || 'postgres');
+
+        const { host, port = 5432, database = 'postgres', username = 'postgres', password } = savedConfig;
+        return {
+            connectionString: `postgres://${username}:${encodeURIComponent(password)}@${host}:${port}/${database}`,
+            hostname: host
+        };
+    }
+
+    // No valid configuration found
+    const isProduction = process.env.NODE_ENV === 'production';
+
+    if (isProduction) {
+        console.error('❌ FATAL: No database configuration found in production!');
+        console.error('   Set DATABASE_URL or DB_HOST/DB_PASSWORD environment variables.');
+        throw new Error('No database configuration found. Set DATABASE_URL or individual DB_* variables.');
+    }
+
+    // Development fallback only
+    console.warn('⚠️ No database configured. Using local development default.');
+    console.warn('   This is only acceptable in development mode.');
+    return {
+        connectionString: 'postgres://postgres:postgres@localhost:5432/newsportal',
+        hostname: 'localhost'
+    };
+}
+
+// Get SSL configuration
+function getSSLConfig(hostname) {
+    // Check saved config for explicit SSL setting
+    const savedConfig = loadSavedConfig();
+    if (savedConfig?.sslMode) {
         if (savedConfig.sslMode === 'require' || savedConfig.sslMode === 'verify-full') {
             return { rejectUnauthorized: savedConfig.sslMode === 'verify-full' };
         } else if (savedConfig.sslMode === 'prefer') {
             return { rejectUnauthorized: false };
+        } else if (savedConfig.sslMode === 'disable') {
+            return undefined;
         }
     }
-    // Check if using cloud database (DATABASE_URL usually requires SSL)
-    if (process.env.DATABASE_URL && !process.env.DATABASE_URL.includes('localhost')) {
+
+    // Auto-detect SSL need based on hostname
+    if (hostname && hostname !== 'localhost' && hostname !== '127.0.0.1') {
+        // Cloud databases typically require SSL
         return { rejectUnauthorized: false };
     }
+
     return undefined;
 }
 
-const pool = new Pool({
-    connectionString: getConnectionString(),
-    ssl: getSSLConfig(),
-    connectionTimeoutMillis: 10000,
-    idleTimeoutMillis: 30000,
-    max: 10,
-});
-
-// Track database availability
+// Initialize pool with validated configuration
+let pool;
 let dbAvailable = false;
+let connectionHostname = 'unknown';
 
+try {
+    const config = getConnectionConfig();
+    connectionHostname = config.hostname;
+
+    pool = new Pool({
+        connectionString: config.connectionString,
+        ssl: getSSLConfig(config.hostname),
+        connectionTimeoutMillis: 10000,
+        idleTimeoutMillis: 30000,
+        max: 10,
+    });
+} catch (err) {
+    console.error('❌ FATAL: Database pool creation failed:', err.message);
+    // Create a dummy pool that will fail on any query
+    pool = {
+        query: async () => { throw new Error('Database not configured: ' + err.message); },
+        connect: async () => { throw new Error('Database not configured: ' + err.message); },
+    };
+}
 
 // Initialize database tables with retry
 const initDB = async (retries = 10, delay = 3000) => {
     for (let i = 0; i < retries; i++) {
         try {
             const client = await pool.connect();
-            console.log(`✅ Database connected (attempt ${i + 1})`);
+            console.log(`✅ Database connected (attempt ${i + 1}) to ${connectionHostname}`);
 
             await client.query(`
                 -- Articles table
@@ -185,7 +343,6 @@ const initDB = async (retries = 10, delay = 3000) => {
                 END $$;
             `);
 
-
             console.log('✅ Database tables initialized');
 
             // Check if seeding is needed
@@ -194,12 +351,6 @@ const initDB = async (retries = 10, delay = 3000) => {
 
             if (count === 0) {
                 console.log('🌱 Database is empty. Running auto-seed...');
-                // Lazy load seed to avoid circular dependencies if any (though currently none)
-                // But better to just run the seed logic here or call the seed file.
-                // Since seed.js is a standalone script, we should modify it to export the function or assume it runs.
-                // To be safe and reuse code, let's assume we will modify seed.js next.
-                // For this step, I will assume we will modify seed.js next.
-
                 const { seed } = require('./seed');
                 await seed();
             } else {
@@ -218,11 +369,19 @@ const initDB = async (retries = 10, delay = 3000) => {
         }
     }
 
-    console.error('❌ Could not connect to database after all retries. Running without database.');
+    console.error('❌ Could not connect to database after all retries.');
+
+    // In production, this is fatal
+    if (process.env.NODE_ENV === 'production') {
+        console.error('❌ FATAL: Exiting due to database connection failure in production.');
+        process.exit(1);
+    }
+
     dbAvailable = false;
     return false;
 };
 
 const isDbAvailable = () => dbAvailable;
+const getDbHostname = () => connectionHostname;
 
-module.exports = { pool, initDB, isDbAvailable };
+module.exports = { pool, initDB, isDbAvailable, getDbHostname };

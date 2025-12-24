@@ -6,7 +6,7 @@ console.log('----------------------------------------');
 const express = require('express');
 const cors = require('cors');
 const path = require('path');
-const { pool, initDB, isDbAvailable } = require('./db');
+const { pool, initDB, isDbAvailable, getDbHostname } = require('./db');
 const articlesRoutes = require('./routes/articles');
 const categoriesRoutes = require('./routes/categories');
 const authRoutes = require('./routes/auth');
@@ -121,10 +121,26 @@ app.get('/', (req, res) => {
 });
 
 // Health check
-app.get('/api/health', (req, res) => {
+app.get('/api/health', async (req, res) => {
+    let dbStatus = 'disconnected';
+    let dbHost = getDbHostname();
+    let dbTest = false;
+
+    if (isDbAvailable()) {
+        try {
+            await pool.query('SELECT 1');
+            dbStatus = 'connected';
+            dbTest = true;
+        } catch (err) {
+            dbStatus = 'error: ' + err.message;
+        }
+    }
+
     res.json({
-        status: 'ok',
-        database: isDbAvailable() ? 'connected' : 'disconnected',
+        status: dbTest ? 'ok' : 'degraded',
+        database: dbStatus,
+        dbHost: dbHost,
+        environment: process.env.NODE_ENV || 'development',
         timestamp: new Date().toISOString()
     });
 });

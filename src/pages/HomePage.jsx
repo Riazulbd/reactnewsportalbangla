@@ -14,7 +14,12 @@ function HomePage() {
     const touchEndX = useRef(null);
     const sliderRef = useRef(null);
 
-    const { articles, categories, getFeaturedArticles, getMainCategories, getSubcategories, settings } = useData();
+    const { articles, categories, getFeaturedArticles, getMainCategories, getSubcategories, settings, refreshData } = useData();
+
+    // Refresh data on mount to get latest from API
+    useEffect(() => {
+        refreshData?.();
+    }, []);
 
     const featuredArticles = getFeaturedArticles();
     const mainCategories = getMainCategories();
@@ -31,6 +36,17 @@ function HomePage() {
             return () => clearInterval(interval);
         }
     }, [featuredArticles.length, sliderInterval, isPaused]);
+
+    // Keyboard navigation for slider
+    const handleKeyDown = useCallback((e) => {
+        if (e.key === 'ArrowLeft') {
+            e.preventDefault();
+            setCurrentSlide(prev => prev === 0 ? featuredArticles.length - 1 : prev - 1);
+        } else if (e.key === 'ArrowRight') {
+            e.preventDefault();
+            setCurrentSlide(prev => (prev + 1) % featuredArticles.length);
+        }
+    }, [featuredArticles.length]);
 
     // Touch/Swipe handlers
     const handleTouchStart = useCallback((e) => {
@@ -92,8 +108,69 @@ function HomePage() {
     return (
         <div className="home-page">
 
-
             <main className="container">
+                {/* Breaking News Ticker */}
+                {articles.length > 0 && (
+                    <section className="breaking-news-ticker" aria-label="ব্রেকিং নিউজ">
+                        <div className="ticker-label">
+                            <span className="ticker-icon">🔴</span>
+                            <span>ব্রেকিং</span>
+                        </div>
+                        <div className="ticker-content">
+                            <div className="ticker-track">
+                                {articles.slice(0, 10).map((article, index) => (
+                                    <Link
+                                        key={article.id}
+                                        to={`/article/${article.id}`}
+                                        className="ticker-item"
+                                    >
+                                        <span className="ticker-separator">●</span>
+                                        {article.title}
+                                    </Link>
+                                ))}
+                            </div>
+                        </div>
+                    </section>
+                )}
+
+                {/* Quick Links / Services */}
+                <section className="quick-links-section" aria-label="দ্রুত লিংক">
+                    <div className="quick-links-grid">
+                        <Link to="/category/national" className="quick-link-item">
+                            <span className="quick-link-icon">🇧🇩</span>
+                            <span className="quick-link-label">জাতীয়</span>
+                        </Link>
+                        <Link to="/category/international" className="quick-link-item">
+                            <span className="quick-link-icon">🌍</span>
+                            <span className="quick-link-label">আন্তর্জাতিক</span>
+                        </Link>
+                        <Link to="/category/sports" className="quick-link-item">
+                            <span className="quick-link-icon">⚽</span>
+                            <span className="quick-link-label">খেলাধুলা</span>
+                        </Link>
+                        <Link to="/category/entertainment" className="quick-link-item">
+                            <span className="quick-link-icon">🎬</span>
+                            <span className="quick-link-label">বিনোদন</span>
+                        </Link>
+                        <Link to="/category/technology" className="quick-link-item">
+                            <span className="quick-link-icon">💻</span>
+                            <span className="quick-link-label">প্রযুক্তি</span>
+                        </Link>
+                        <Link to="/category/economy" className="quick-link-item">
+                            <span className="quick-link-icon">📈</span>
+                            <span className="quick-link-label">অর্থনীতি</span>
+                        </Link>
+                        <Link to="/category/lifestyle" className="quick-link-item">
+                            <span className="quick-link-icon">✨</span>
+                            <span className="quick-link-label">জীবনধারা</span>
+                        </Link>
+                        <Link to="/category/opinion" className="quick-link-item">
+                            <span className="quick-link-icon">💭</span>
+                            <span className="quick-link-label">মতামত</span>
+                        </Link>
+                    </div>
+                </section>
+
                 {/* Featured Slider */}
                 {featuredArticles.length > 0 && (
                     <section className="hero-section">
@@ -105,6 +182,11 @@ function HomePage() {
                             onTouchStart={handleTouchStart}
                             onTouchMove={handleTouchMove}
                             onTouchEnd={handleTouchEnd}
+                            onKeyDown={handleKeyDown}
+                            role="region"
+                            aria-label="ফিচার্ড সংবাদ স্লাইডার"
+                            aria-live="polite"
+                            tabIndex={0}
                         >
                             {featuredArticles.map((article, index) => (
                                 <Link
@@ -136,12 +218,15 @@ function HomePage() {
 
                             {/* Slider Dots */}
                             {featuredArticles.length > 1 && (
-                                <div className="slider-dots">
+                                <div className="slider-dots" role="tablist" aria-label="স্লাইড নেভিগেশন">
                                     {featuredArticles.map((_, index) => (
                                         <button
                                             key={index}
                                             className={`slider-dot ${index === currentSlide ? 'active' : ''}`}
                                             onClick={() => setCurrentSlide(index)}
+                                            role="tab"
+                                            aria-selected={index === currentSlide}
+                                            aria-label={`স্লাইড ${index + 1}`}
                                         />
                                     ))}
                                 </div>
@@ -153,12 +238,14 @@ function HomePage() {
                                     <button
                                         className="slider-arrow slider-arrow-prev"
                                         onClick={() => setCurrentSlide(prev => prev === 0 ? featuredArticles.length - 1 : prev - 1)}
+                                        aria-label="পূর্ববর্তী স্লাইড"
                                     >
                                         ‹
                                     </button>
                                     <button
                                         className="slider-arrow slider-arrow-next"
                                         onClick={() => setCurrentSlide(prev => (prev + 1) % featuredArticles.length)}
+                                        aria-label="পরবর্তী স্লাইড"
                                     >
                                         ›
                                     </button>
@@ -236,6 +323,69 @@ function HomePage() {
                                 </Link>
                             ))}
                         </div>
+                    </div>
+                </section>
+
+                {/* Video Highlights Section */}
+                <section className="video-highlights-section">
+                    <div className="section-header">
+                        <h2 className="section-title">🎬 ভিডিও হাইলাইটস</h2>
+                        <Link to="/videos" className="section-link">
+                            সব ভিডিও →
+                        </Link>
+                    </div>
+                    <div className="video-grid">
+                        {articles.slice(0, 4).map((article) => (
+                            <Link
+                                key={article.id}
+                                to={`/article/${article.id}`}
+                                className="video-card"
+                            >
+                                <div className="video-thumbnail">
+                                    <img src={article.image} alt={article.title} />
+                                    <div className="video-play-button">
+                                        <span>▶</span>
+                                    </div>
+                                    <span className="video-duration">৫:৩২</span>
+                                </div>
+                                <h4 className="video-title">{article.title}</h4>
+                                <span className="video-meta">
+                                    {getCategory(article.category)?.name} • {article.date}
+                                </span>
+                            </Link>
+                        ))}
+                    </div>
+                </section>
+
+                {/* Opinion & Editorial Section */}
+                <section className="opinion-section">
+                    <div className="section-header">
+                        <h2 className="section-title">💭 মতামত ও সম্পাদকীয়</h2>
+                        <Link to="/category/opinion" className="section-link">
+                            সব মতামত →
+                        </Link>
+                    </div>
+                    <div className="opinion-grid">
+                        {articles.slice(0, 3).map((article) => (
+                            <Link
+                                key={article.id}
+                                to={`/article/${article.id}`}
+                                className="opinion-card"
+                            >
+                                <div className="opinion-author">
+                                    <div className="author-avatar">
+                                        {article.author?.charAt(0) || 'স'}
+                                    </div>
+                                    <div className="author-info">
+                                        <span className="author-name">{article.author || 'সম্পাদকীয়'}</span>
+                                        <span className="author-role">কলামিস্ট</span>
+                                    </div>
+                                </div>
+                                <h3 className="opinion-title">{article.title}</h3>
+                                <p className="opinion-excerpt">{article.excerpt}</p>
+                                <span className="opinion-date">{article.date}</span>
+                            </Link>
+                        ))}
                     </div>
                 </section>
 

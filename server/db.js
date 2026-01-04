@@ -226,14 +226,29 @@ function getSSLConfig(hostname) {
         }
     }
 
+    // Check for DB_SSL environment variable to explicitly control SSL
+    if (process.env.DB_SSL === 'false' || process.env.DB_SSL === 'disable') {
+        console.log('🔓 SSL disabled via DB_SSL environment variable');
+        return false;
+    }
+
+    // Docker container hostnames that don't need SSL
+    const dockerHostnames = ['newsportal-db', 'postgres', 'db', 'database'];
+
     // Auto-detect SSL need based on hostname
     if (hostname && hostname !== 'localhost' && hostname !== '127.0.0.1') {
+        // Check if it's a Docker internal hostname
+        if (dockerHostnames.includes(hostname.toLowerCase())) {
+            console.log('🔓 SSL disabled for Docker internal hostname:', hostname);
+            return false;
+        }
         // Cloud databases typically require SSL
         return { rejectUnauthorized: false };
     }
 
     return undefined;
 }
+
 
 // Initialize pool with validated configuration
 let pool;

@@ -84,15 +84,20 @@ function ArticleForm() {
 
     const [tagInput, setTagInput] = useState('');
 
-    // Calculate SEO Score
+    // Calculate SEO Score (with null-safety)
     const seoScore = useMemo(() => {
         let score = 0;
-        const seo = formData.seo;
+        const seo = formData.seo || {};
+        const metaTitle = seo.metaTitle || '';
+        const metaDescription = seo.metaDescription || '';
+        const keywords = seo.keywords || '';
+        const googleNewsKeywords = seo.googleNewsKeywords || '';
+
         if (formData.title) { score += 5; if (formData.title.length >= 30 && formData.title.length <= 70) score += 10; if (formData.title.length > 10) score += 5; }
-        if (seo.metaTitle) { score += 5; if (seo.metaTitle.length >= 30 && seo.metaTitle.length <= 60) score += 10; }
-        if (seo.metaDescription) { score += 5; if (seo.metaDescription.length >= 120 && seo.metaDescription.length <= 160) score += 15; else if (seo.metaDescription.length >= 80) score += 10; }
-        if (seo.keywords) { score += 10; const keywordCount = seo.keywords.split(',').filter(k => k.trim()).length; if (keywordCount >= 3 && keywordCount <= 8) score += 5; }
-        if (seo.googleNewsKeywords) score += 10;
+        if (metaTitle) { score += 5; if (metaTitle.length >= 30 && metaTitle.length <= 60) score += 10; }
+        if (metaDescription) { score += 5; if (metaDescription.length >= 120 && metaDescription.length <= 160) score += 15; else if (metaDescription.length >= 80) score += 10; }
+        if (keywords) { score += 10; const keywordCount = keywords.split(',').filter(k => k.trim()).length; if (keywordCount >= 3 && keywordCount <= 8) score += 5; }
+        if (googleNewsKeywords) score += 10;
         if (formData.slug) { score += 5; if (/^[a-z0-9-]+$/.test(formData.slug)) score += 5; }
         if (formData.image) score += 10;
         return Math.min(score, 100);
@@ -116,7 +121,13 @@ function ArticleForm() {
                     tags: article.tags || [],
                     writer_id: article.writer_id || '',
                     show_writer: article.show_writer !== false,
-                    seo: article.seo || { metaTitle: '', metaDescription: '', keywords: '', canonical: '', googleNewsKeywords: '' },
+                    seo: {
+                        metaTitle: article.seo?.metaTitle || '',
+                        metaDescription: article.seo?.metaDescription || '',
+                        keywords: article.seo?.keywords || '',
+                        canonical: article.seo?.canonical || '',
+                        googleNewsKeywords: article.seo?.googleNewsKeywords || '',
+                    },
                 });
             }
         }
@@ -401,24 +412,24 @@ function ArticleForm() {
 
                             <div className="admin-form-group">
                                 <label className="admin-form-label">মেটা শিরোনাম</label>
-                                <input type="text" name="metaTitle" className="admin-form-input" placeholder="৩০-৬০ অক্ষর" value={formData.seo.metaTitle} onChange={handleSeoChange} maxLength={60} />
-                                <small style={{ color: formData.seo.metaTitle.length >= 30 && formData.seo.metaTitle.length <= 60 ? '#22c55e' : 'var(--color-text-muted)' }}>{formData.seo.metaTitle.length}/60</small>
+                                <input type="text" name="metaTitle" className="admin-form-input" placeholder="৩০-৬০ অক্ষর" value={formData.seo?.metaTitle || ''} onChange={handleSeoChange} maxLength={60} />
+                                <small style={{ color: (formData.seo?.metaTitle?.length || 0) >= 30 && (formData.seo?.metaTitle?.length || 0) <= 60 ? '#22c55e' : 'var(--color-text-muted)' }}>{formData.seo?.metaTitle?.length || 0}/60</small>
                             </div>
 
                             <div className="admin-form-group">
                                 <label className="admin-form-label">মেটা বিবরণ</label>
-                                <textarea name="metaDescription" className="admin-form-textarea" placeholder="১২০-১৬০ অক্ষর" value={formData.seo.metaDescription} onChange={handleSeoChange} style={{ minHeight: '80px' }} maxLength={160} />
-                                <small style={{ color: formData.seo.metaDescription.length >= 120 ? '#22c55e' : 'var(--color-text-muted)' }}>{formData.seo.metaDescription.length}/160</small>
+                                <textarea name="metaDescription" className="admin-form-textarea" placeholder="১২০-১৬০ অক্ষর" value={formData.seo?.metaDescription || ''} onChange={handleSeoChange} style={{ minHeight: '80px' }} maxLength={160} />
+                                <small style={{ color: (formData.seo?.metaDescription?.length || 0) >= 120 ? '#22c55e' : 'var(--color-text-muted)' }}>{formData.seo?.metaDescription?.length || 0}/160</small>
                             </div>
 
                             <div className="admin-form-group">
                                 <label className="admin-form-label">কীওয়ার্ডস</label>
-                                <input type="text" name="keywords" className="admin-form-input" placeholder="কমা দিয়ে আলাদা" value={formData.seo.keywords} onChange={handleSeoChange} />
+                                <input type="text" name="keywords" className="admin-form-input" placeholder="কমা দিয়ে আলাদা" value={formData.seo?.keywords || ''} onChange={handleSeoChange} />
                             </div>
 
                             <div className="admin-form-group">
                                 <label className="admin-form-label">Google News কীওয়ার্ডস</label>
-                                <input type="text" name="googleNewsKeywords" className="admin-form-input" value={formData.seo.googleNewsKeywords} onChange={handleSeoChange} />
+                                <input type="text" name="googleNewsKeywords" className="admin-form-input" value={formData.seo?.googleNewsKeywords || ''} onChange={handleSeoChange} />
                             </div>
                         </>
                     )}

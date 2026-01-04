@@ -1,29 +1,48 @@
-version: '3.8'
-
 services:
+  # PostgreSQL Database
+  newsportal-db:
+    image: postgres:16-alpine
+    container_name: newsportal-db
+    restart: unless-stopped
+    environment:
+      - POSTGRES_DB=newsportal
+      - POSTGRES_USER=postgres
+      - POSTGRES_PASSWORD=postgres123
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres -d newsportal"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
+    networks:
+      - newsportal-network
+
+  # Backend API Server
   newsportal-backend:
     build:
       context: ./server
       dockerfile: Dockerfile
     container_name: newsportal-api
     restart: unless-stopped
-    ports:
-      - "3001:3001"
+    expose:
+      - "3001"
     environment:
       - NODE_ENV=production
       - BACKEND_PORT=3001
-      - JWT_SECRET=${JWT_SECRET:-your-super-secret-jwt-key}
+      - DATABASE_URL=postgres://postgres:postgres123@newsportal-db:5432/newsportal
+      - JWT_SECRET=${JWT_SECRET:-your-super-secret-jwt-key-change-in-production}
       - DB_ENCRYPTION_KEY=${DB_ENCRYPTION_KEY:-newsportal-secure-key-32chars!!}
     volumes:
       - ./server/uploads:/app/uploads
-      # config.json not needed as volume unless you have a specific config file to inject
-    healthcheck:
-      test: [ "CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:3001/api/health" ]
-      interval: 30s
-      timeout: 10s
-      retries: 3
-      start_period: 10s
+    depends_on:
+      newsportal-db:
+        condition: service_healthy
+    networks:
+      - newsportal-network
 
+  # Frontend (React + Vite served via Nginx)
   newsportal-frontend:
     build:
       context: .
@@ -31,8 +50,15 @@ services:
     container_name: newsportal-frontend
     restart: unless-stopped
     ports:
-      - "80:80"
+      - "8080:80"
     depends_on:
       - newsportal-backend
-    # VITE_API_URL is baked in at build time or handled by nginx proxy /api
+    networks:
+      - newsportal-network
 
+volumes:
+  postgres_data:
+
+networks:
+  newsportal-network:
+    driver: bridge

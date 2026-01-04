@@ -1,11 +1,17 @@
 import { useParams } from 'react-router-dom';
+import { useEffect } from 'react';
 import { useData } from '../admin/DataContext';
 import ArticleCard from '../components/ArticleCard';
 import './CategoryPage.css';
 
 function CategoryPage() {
     const { categoryId } = useParams();
-    const { categories, getArticlesByCategory, getSubcategories } = useData();
+    const { categories, getArticlesByCategory, getSubcategories, refreshData } = useData();
+
+    // Refresh data on mount and when category changes
+    useEffect(() => {
+        refreshData?.();
+    }, [categoryId]);
 
     // Match by id, slug, or string representation of id
     const category = categories.find((c) =>

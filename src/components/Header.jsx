@@ -179,6 +179,23 @@ function Header() {
                         )}
                     </div>
 
+                    {/* Mobile Logo - Centered */}
+                    <Link to="/" className="mobile-nav-logo" style={{ display: 'none' }}>
+                        <span className="logo-main">বাংলা সংবাদ</span>
+                    </Link>
+
+                    {/* Mobile Actions - Right side placeholder */}
+                    <div className="mobile-nav-actions" style={{ display: 'none' }}>
+                        <button
+                            className="topbar-search-btn"
+                            onClick={() => setIsSearchOpen(!isSearchOpen)}
+                            aria-label="অনুসন্ধান"
+                            style={{ color: 'white' }}
+                        >
+                            🔍
+                        </button>
+                    </div>
+
                     {/* Mobile Menu Toggle */}
                     <button
                         className="mobile-menu-btn"

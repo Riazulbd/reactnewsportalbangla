@@ -398,6 +398,8 @@
 }
 
 @media (max-width: 768px) {
+
+    /* Hide separate topbar elements on mobile */
     .topbar-social {
         display: none;
     }
@@ -406,16 +408,50 @@
         font-size: var(--text-xs);
     }
 
-    .logo-main {
-        font-size: var(--text-xl);
-    }
-
-    .logo-sub {
+    /* Hide the separate logo section on mobile */
+    .header-logo-section {
         display: none;
     }
 
-    .header-logo-section {
+    /* Restructure nav to include logo */
+    .nav-container {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
         padding: var(--space-sm) 0;
+    }
+
+    /* Mobile menu button - left side */
+    .mobile-menu-btn {
+        order: 1;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        width: 44px;
+        height: 44px;
+        background: rgba(255, 255, 255, 0.1);
+        border-radius: var(--radius-md);
+    }
+
+    /* Mobile logo - center */
+    .mobile-nav-logo {
+        display: flex !important;
+        order: 2;
+        flex: 1;
+        justify-content: center;
+    }
+
+    .mobile-nav-logo .logo-main {
+        font-size: var(--text-lg);
+        font-weight: 700;
+    }
+
+    /* Mobile actions - right side (placeholder for balance) */
+    .mobile-nav-actions {
+        order: 3;
+        width: 44px;
+        display: flex;
+        justify-content: flex-end;
     }
 }
 
@@ -426,5 +462,13 @@
 
     .topbar-theme-btn span {
         display: none;
+    }
+
+    .topbar-container {
+        padding: 0 var(--space-sm);
+    }
+
+    .mobile-nav-logo .logo-main {
+        font-size: var(--text-base);
     }
 }
